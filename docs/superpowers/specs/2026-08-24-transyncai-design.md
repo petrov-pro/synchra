@@ -16,10 +16,14 @@ translation of the recognized text is done via a cheap, fast cloud model
 - Language selection must be a real dropdown, driven by config data, not
   hardcoded to EN/RU — so adding language pairs later is a config change,
   not a code change.
-- UI shows both the live recognized source text and the live translation.
-- Mic control: continuous always-on toggle (not push-to-talk). One button
-  starts a session; mic stays open and translations keep streaming until
-  stopped.
+- UI has a **Start/Stop button** for the mic (continuous always-on while
+  running, not push-to-talk). Start opens the mic and begins streaming;
+  Stop closes it and ends the session.
+- UI has a **view mode switch** with three states: Both (transcription +
+  translation), Transcription only, Translation only. In Transcription
+  only mode, recognized text is **not** sent to the Kimi API at all — no
+  wasted translation calls when the user only wants the source text.
+- UI shows the panels selected by the current view mode.
 - Kimi API key entered once by the user and stored on-device (Android
   Keystore-backed `EncryptedSharedPreferences`), never hardcoded or
   committed to source.
@@ -58,9 +62,13 @@ SessionViewModel
   │
   ▼
 Compose UI
-  (language dropdown, listen toggle, source-text panel,
-   translation panel, settings entry point)
+  (language dropdown, Start/Stop button, view mode switch,
+   source-text panel, translation panel, settings entry point)
 ```
+
+`Translator` is only invoked when the current view mode is Both or
+Translation-only; in Transcription-only mode `SessionViewModel` skips the
+Kimi call entirely for that segment.
 
 ## Components
 
@@ -72,21 +80,25 @@ Compose UI
 | `Translator` (interface) | Abstraction over any translation provider | Enables swapping providers later |
 | `KimiTranslationClient` | Implements `Translator` via OkHttp HTTPS calls to Kimi K2.5 | Mockable via the interface for tests |
 | `ConfigRepository` | Resolves settings: `BuildConfig` defaults (buffer size, language list, API base URL) overridable at runtime via `SharedPreferences` | Android's equivalent of env-var-driven config |
-| `SessionViewModel` | Orchestrates mic → ASR → buffer → translation → UI state | Depends only on `SpeechRecognizer`/`Translator`/`ConfigRepository` abstractions |
-| Compose UI (`MainScreen`) | Language dropdown, listen toggle, source/translation panels | Renders `SessionViewModel` state |
+| `SessionViewModel` | Orchestrates mic → ASR → buffer → translation → UI state; holds `ViewMode` (Both / TranscriptionOnly / TranslationOnly) and gates the `Translator` call on it | Depends only on `SpeechRecognizer`/`Translator`/`ConfigRepository` abstractions |
+| Compose UI (`MainScreen`) | Language dropdown, Start/Stop button, view mode switch, source/translation panels | Renders `SessionViewModel` state; panels shown depend on `ViewMode` |
 | `SettingsScreen` | API key entry (Keystore-backed storage), buffer size, language list overrides | |
 
 ## Data flow
 
-1. User taps listen toggle → mic opens, session starts.
+1. User taps **Start** → mic opens, session starts.
 2. `SherpaOnnxAsrEngine` streams recognized English text (partial + final
    segments) roughly every 0.5–1s.
 3. `ContextBuffer` appends each segment, maintaining the configured window.
-4. On each new segment, `SessionViewModel` sends `{context, current_phrase,
-   source_lang, target_lang}` to `KimiTranslationClient`.
-5. Translated Russian text returns and updates UI state.
-6. Compose UI re-renders both source and translation panels live.
-7. User taps toggle again → mic closes, session ends.
+4. If `ViewMode` is Both or TranslationOnly, `SessionViewModel` sends
+   `{context, current_phrase, source_lang, target_lang}` to
+   `KimiTranslationClient` on each new segment. If `ViewMode` is
+   TranscriptionOnly, this step is skipped — no API call is made.
+5. Translated Russian text (when requested) returns and updates UI state.
+6. Compose UI re-renders the panel(s) selected by the current view mode.
+7. User taps **Stop** → mic closes, session ends.
+8. User may switch view mode at any time, including mid-session; it only
+   affects future segments, not a re-translation of past ones.
 
 ## Dynamic settings
 
@@ -112,7 +124,10 @@ Two layers:
 
 ## Tech stack
 
-- Kotlin, Jetpack Compose, single-activity app.
+- Kotlin, Jetpack Compose, single-activity app. (Considered Java + XML
+  Views; Kotlin chosen because Compose — needed for smooth ~0.5–1s live
+  text updates — is Kotlin-first, and coroutines fit the streaming
+  ASR/translation flow more cleanly than manual threading.)
 - `minSdk 26`, `targetSdk` latest stable.
 - OkHttp for the Kimi HTTPS client.
 - Package id: `com.petroff.transyncai`, app name **TransyncAI**.
