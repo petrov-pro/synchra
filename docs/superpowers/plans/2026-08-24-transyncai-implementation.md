@@ -1345,33 +1345,47 @@ class WavFileAudioSource(
 package com.petroff.transyncai.asr
 
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
+import kotlin.concurrent.thread
 
 class SherpaOnnxAsrEngine(
     private val audioSource: AudioSource,
     private val recognizerFactory: () -> OnlineRecognizer,
 ) : SpeechRecognizer {
 
-    override fun start(onSegment: (AsrSegment) -> Unit) {
-        val recognizer = recognizerFactory()
-        val stream = recognizer.createStream()
+    @Volatile
+    private var stopRequested = false
 
-        audioSource.start { samples ->
-            stream.acceptWaveform(samples, MicAudioSource.SAMPLE_RATE)
-            while (recognizer.isReady(stream)) {
-                recognizer.decode(stream)
-            }
-            val isEndpoint = recognizer.isEndpoint(stream)
-            val text = recognizer.getResult(stream).text
-            if (text.isNotBlank() || isEndpoint) {
-                onSegment(AsrSegment(text, isEndpoint))
-            }
-            if (isEndpoint) {
-                recognizer.reset(stream)
+    override fun start(onSegment: (AsrSegment) -> Unit) {
+        stopRequested = false
+        // recognizerFactory() may trigger a blocking model-file download (see
+        // ModelFileProvider, Task 6) — start() must return immediately without
+        // blocking the caller's thread, since callers include Compose's viewModel()
+        // factory path (main thread) via AppContainer/SessionViewModelFactory (Task 11).
+        thread(name = "SherpaOnnxAsrEngine-init") {
+            val recognizer = recognizerFactory()
+            val stream = recognizer.createStream()
+
+            if (stopRequested) return@thread
+
+            audioSource.start { samples ->
+                stream.acceptWaveform(samples, MicAudioSource.SAMPLE_RATE)
+                while (recognizer.isReady(stream)) {
+                    recognizer.decode(stream)
+                }
+                val isEndpoint = recognizer.isEndpoint(stream)
+                val text = recognizer.getResult(stream).text
+                if (text.isNotBlank() || isEndpoint) {
+                    onSegment(AsrSegment(text, isEndpoint))
+                }
+                if (isEndpoint) {
+                    recognizer.reset(stream)
+                }
             }
         }
     }
 
     override fun stop() {
+        stopRequested = true
         audioSource.stop()
     }
 }
@@ -1517,7 +1531,7 @@ git commit -m "Integrate Sherpa-ONNX streaming ASR engine with instrumented WAV 
 
 **Interfaces:**
 - Consumes: `SpeechRecognizer`, `AsrSegment` (Task 7); `Translator` (Task 5); `ConfigRepository`, `AppConfig`, `LanguagePair` (Task 4).
-- Produces: `enum class ViewMode { BOTH, TRANSCRIPTION_ONLY, TRANSLATION_ONLY }`; `data class SessionUiState(isListening, viewMode, sourceText, translatedText, errorMessage, canStart)`; `class SessionViewModel(speechRecognizer: SpeechRecognizer, translator: Translator, configRepository: ConfigRepository) : ViewModel()` exposing `val uiState: StateFlow<SessionUiState>`, `fun start()`, `fun stop()`, `fun setViewMode(mode: ViewMode)`.
+- Produces: `enum class ViewMode { BOTH, TRANSCRIPTION_ONLY, TRANSLATION_ONLY }`; `data class SessionUiState(isListening, viewMode, sourceText, translatedText, errorMessage, canStart)`; `class SessionViewModel(speechRecognizer: SpeechRecognizer, translator: Translator, configRepository: ConfigRepository) : ViewModel()` exposing `val uiState: StateFlow<SessionUiState>`, `fun start()`, `fun stop()`, `fun setViewMode(mode: ViewMode)`, `fun refreshCanStart()`.
 
 - [ ] **Step 1: Write `ViewMode.kt` and `SessionUiState.kt`**
 
@@ -1703,6 +1717,18 @@ class SessionViewModelTest {
     }
 
     @Test
+    fun `refreshCanStart picks up a key saved directly via ConfigRepository`() {
+        configRepository.setApiKey("")
+        viewModel.setViewMode(ViewMode.BOTH)
+        assertFalse(viewModel.uiState.value.canStart)
+
+        configRepository.setApiKey("sk-saved-in-settings")
+        viewModel.refreshCanStart()
+
+        assertTrue(viewModel.uiState.value.canStart)
+    }
+
+    @Test
     fun `stop stops the recognizer and updates state`() {
         viewModel.start()
         viewModel.stop()
@@ -1767,6 +1793,16 @@ class SessionViewModel(
         _uiState.update { it.copy(viewMode = mode, canStart = computeCanStart(mode)) }
     }
 
+    /**
+     * Re-checks canStart against the current ConfigRepository state without changing
+     * viewMode. Call this whenever config may have changed outside this ViewModel's own
+     * setters — e.g. after returning from Settings, where the API key was saved via
+     * ConfigRepository directly, not through this ViewModel.
+     */
+    fun refreshCanStart() {
+        _uiState.update { it.copy(canStart = computeCanStart(it.viewMode)) }
+    }
+
     private fun computeCanStart(mode: ViewMode): Boolean {
         val needsTranslation = mode != ViewMode.TRANSCRIPTION_ONLY
         return !needsTranslation || !configRepository.getConfig().apiKey.isNullOrBlank()
@@ -1815,7 +1851,7 @@ class SessionViewModel(
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `./gradlew :app:testDebugUnitTest --tests "com.petroff.transyncai.session.SessionViewModelTest"`
-Expected: BUILD SUCCESSFUL, 8 tests passed.
+Expected: BUILD SUCCESSFUL, 9 tests passed.
 
 - [ ] **Step 7: Commit**
 
@@ -2396,8 +2432,14 @@ class AppContainer(private val context: Context) {
 
     fun buildSpeechRecognizer(): SpeechRecognizer {
         val modelDir = File(context.filesDir, "model")
-        val paths = ModelFileProvider(OkHttpFileDownloader(httpClient), modelDir).ensureModelFiles()
+        // ensureModelFiles() does blocking network I/O — it must NOT run here.
+        // buildSpeechRecognizer() is called from SessionViewModelFactory.create(),
+        // which Compose's viewModel() invokes synchronously during composition
+        // (main thread). Deferring it into the lazy recognizerFactory below means
+        // it only runs inside SherpaOnnxAsrEngine's background init thread (Task 7),
+        // when the user actually taps Start — never on the main thread.
         val recognizerFactory = {
+            val paths = ModelFileProvider(OkHttpFileDownloader(httpClient), modelDir).ensureModelFiles()
             OnlineRecognizer(
                 config = OnlineRecognizerConfig(
                     featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80),
@@ -2456,10 +2498,13 @@ fun TransyncAiApp(container: AppContainer) {
                 // Re-read config whenever the visible screen changes, so edits made in
                 // Settings (API key, buffer size) are picked up as soon as the user
                 // navigates back to Main, without needing ConfigRepository to be reactive.
+                // Also nudge the ViewModel's own canStart, which ConfigRepository changes
+                // don't otherwise propagate into (canStart only recomputes on init/setViewMode).
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 var config by remember { mutableStateOf(container.configRepository.getConfig()) }
                 LaunchedEffect(backStackEntry) {
                     config = container.configRepository.getConfig()
+                    sessionViewModel.refreshCanStart()
                 }
 
                 NavHost(navController = navController, startDestination = "main") {
