@@ -1470,8 +1470,15 @@ class SherpaOnnxAsrEngineInstrumentedTest {
                     // empty result. Lowering the thresholds here is scoped to this test's
                     // config only — SherpaOnnxAsrEngine/MicAudioSource and their default
                     // (production, real-mic) endpoint behavior are untouched.
+                    // mustContainNonSilence = true on BOTH rules (not just rule2): with
+                    // start()/stop() now genuinely asynchronous (see SherpaOnnxAsrEngine's
+                    // background-thread fix), a rule that can fire on trailing-silence
+                    // duration alone — without requiring any speech to have been detected
+                    // first — false-positives on the WAV's ~0.3-0.5s of LEADING silence,
+                    // producing a premature empty final segment before "YELLOW LAMPS"/
+                    // "NIGHTFALL" is ever decoded. Requiring non-silence first prevents that.
                     endpointConfig = EndpointConfig(
-                        rule1 = EndpointRule(mustContainNonSilence = false, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
+                        rule1 = EndpointRule(mustContainNonSilence = true, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
                         rule2 = EndpointRule(mustContainNonSilence = true, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
                     ),
                 )
@@ -2699,12 +2706,12 @@ class E2ETranslationFlowTest {
                         modelType = "zipformer2",
                         numThreads = 2,
                     ),
-                    // Same test-only endpoint tuning as Task 7's instrumented test: 0.wav's
-                    // ~0.4s trailing silence is well under the library's default thresholds
-                    // (1.4s/2.4s), so isEndpoint() never fires with defaults. See Task 7 for
-                    // the root-cause writeup.
+                    // Same test-only endpoint tuning as Task 7's instrumented test (including
+                    // the mustContainNonSilence=true fix on rule1 that prevents a false-positive
+                    // endpoint on the WAV's leading silence, needed once start()/stop() became
+                    // genuinely asynchronous). See Task 7 for the root-cause writeup.
                     endpointConfig = EndpointConfig(
-                        rule1 = EndpointRule(mustContainNonSilence = false, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
+                        rule1 = EndpointRule(mustContainNonSilence = true, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
                         rule2 = EndpointRule(mustContainNonSilence = true, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
                     ),
                 )
