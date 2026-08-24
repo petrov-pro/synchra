@@ -10,8 +10,6 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import java.io.File
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -40,14 +38,22 @@ class SherpaOnnxAsrEngineInstrumentedTest {
                         modelType = "zipformer2",
                         numThreads = 2,
                     ),
-                    // The bundled test WAV (0.wav) has only ~0.4s of trailing near-silence,
-                    // shorter than the library's default endpoint rules (1.4s / 2.4s), so the
-                    // default config never reports isEndpoint for this short clip. Lower the
-                    // trailing-silence threshold for this test only; production behavior
-                    // (SherpaOnnxAsrEngine, MicAudioSource) is unchanged.
+                    // Test-only: the bundled 0.wav has only ~0.4s of trailing silence,
+                    // well under the library's default endpoint thresholds (1.4s/2.4s),
+                    // so isEndpoint() never fires with defaults and the test hangs on an
+                    // empty result. Lowering the thresholds here is scoped to this test's
+                    // config only — SherpaOnnxAsrEngine/MicAudioSource and their default
+                    // (production, real-mic) endpoint behavior are untouched.
+                    // mustContainNonSilence = true on BOTH rules (not just rule2): with
+                    // start()/stop() now genuinely asynchronous (see SherpaOnnxAsrEngine's
+                    // background-thread fix), a rule that can fire on trailing-silence
+                    // duration alone — without requiring any speech to have been detected
+                    // first — false-positives on the WAV's ~0.3-0.5s of LEADING silence,
+                    // producing a premature empty final segment before "YELLOW LAMPS"/
+                    // "NIGHTFALL" is ever decoded. Requiring non-silence first prevents that.
                     endpointConfig = EndpointConfig(
-                        rule1 = EndpointRule(false, 0.3f, 0.0f),
-                        rule2 = EndpointRule(true, 0.3f, 0.0f),
+                        rule1 = EndpointRule(mustContainNonSilence = true, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
+                        rule2 = EndpointRule(mustContainNonSilence = true, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
                     ),
                 )
             )
@@ -60,15 +66,23 @@ class SherpaOnnxAsrEngineInstrumentedTest {
         val engine = SherpaOnnxAsrEngine(audioSource, recognizerFactory)
 
         val finalTexts = mutableListOf<String>()
-        val latch = CountDownLatch(1)
         engine.start { segment ->
             if (segment.isFinal) {
                 finalTexts.add(segment.text)
-                latch.countDown()
             }
         }
 
-        latch.await(30, TimeUnit.SECONDS)
+        // Do NOT stop() after the first final segment: the recognizer can legitimately
+        // emit more than one final segment for this clip (e.g. a natural mid-sentence
+        // pause between "EARLY" and "NIGHTFALL" also satisfies the tuned endpoint rule
+        // above) — stopping early would cut off the rest of the WAV before the target
+        // phrase is decoded. 0.wav is ~6.6s; WavFileAudioSource's feed loop terminates
+        // naturally on its own once the file is exhausted, independent of stop() — wait
+        // generously for that instead of racing an early stop() against in-progress
+        // decoding. Accumulating every final segment and asserting only after the full
+        // clip has played is robust to exactly how many times/where endpoints fire
+        // internally.
+        Thread.sleep(20_000)
         engine.stop()
 
         val recognized = finalTexts.joinToString(" ").uppercase()
