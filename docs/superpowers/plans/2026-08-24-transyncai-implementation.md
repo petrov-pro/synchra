@@ -1286,7 +1286,7 @@ class MicAudioSource : AudioSource {
 
     override fun stop() {
         running.set(false)
-        recordingThread?.join(timeoutMillis = 500)
+        recordingThread?.join(500) // Thread.join(Long) is a Java method — no named args allowed
         recordingThread = null
     }
 
@@ -1412,6 +1412,8 @@ package com.petroff.transyncai.asr
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.k2fsa.sherpa.onnx.EndpointConfig
+import com.k2fsa.sherpa.onnx.EndpointRule
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
@@ -1447,6 +1449,16 @@ class SherpaOnnxAsrEngineInstrumentedTest {
                         tokens = paths.tokens,
                         modelType = "zipformer2",
                         numThreads = 2,
+                    ),
+                    // Test-only: the bundled 0.wav has only ~0.4s of trailing silence,
+                    // well under the library's default endpoint thresholds (1.4s/2.4s),
+                    // so isEndpoint() never fires with defaults and the test hangs on an
+                    // empty result. Lowering the thresholds here is scoped to this test's
+                    // config only — SherpaOnnxAsrEngine/MicAudioSource and their default
+                    // (production, real-mic) endpoint behavior are untouched.
+                    endpointConfig = EndpointConfig(
+                        rule1 = EndpointRule(mustContainNonSilence = false, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
+                        rule2 = EndpointRule(mustContainNonSilence = true, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
                     ),
                 )
             )
@@ -2513,6 +2525,8 @@ import com.petroff.transyncai.config.FakeSettingsStore
 import com.petroff.transyncai.session.SessionViewModel
 import com.petroff.transyncai.translate.KimiTranslationClient
 import com.petroff.transyncai.ui.TransyncAiApp
+import com.k2fsa.sherpa.onnx.EndpointConfig
+import com.k2fsa.sherpa.onnx.EndpointRule
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
@@ -2583,6 +2597,14 @@ class E2ETranslationFlowTest {
                         tokens = paths.tokens,
                         modelType = "zipformer2",
                         numThreads = 2,
+                    ),
+                    // Same test-only endpoint tuning as Task 7's instrumented test: 0.wav's
+                    // ~0.4s trailing silence is well under the library's default thresholds
+                    // (1.4s/2.4s), so isEndpoint() never fires with defaults. See Task 7 for
+                    // the root-cause writeup.
+                    endpointConfig = EndpointConfig(
+                        rule1 = EndpointRule(mustContainNonSilence = false, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
+                        rule2 = EndpointRule(mustContainNonSilence = true, minTrailingSilence = 0.3f, minUtteranceLength = 0.0f),
                     ),
                 )
             )
