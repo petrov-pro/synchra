@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Package id `com.petroff.transyncai`, app name **TransyncAI**.
-- `minSdk = 26`, `targetSdk = 36`, `compileSdk = 36`.
+- `minSdk = 26`, `targetSdk = 37`, `compileSdk = 37` (bumped from the original 36 during Task 2 — Compose BOM 2026.08.00 requires compileSdk 37 at resource-processing time; see Task 2's ledger entry).
 - Kotlin + Jetpack Compose only — no XML views.
 - SOLID: `SpeechRecognizer` and `Translator` are interfaces; `SessionViewModel` depends only on abstractions, never on `SherpaOnnxAsrEngine` or `KimiTranslationClient` directly.
 - TDD (red → green → refactor) for every non-UI, non-native-audio component: `ContextBuffer`, `ConfigRepository`, `KimiTranslationClient`, model-download logic, `SessionViewModel`.
@@ -114,12 +114,12 @@ Leave the emulator running for later tasks (`adb -s emulator-5554 shell` still w
 - Create: `gradle.properties`
 - Create: `local.properties`
 - Create: `.gitignore`
-- Create: `gradle/wrapper/gradle-wrapper.properties`
+- Create: `gradle/wrapper/gradle-wrapper.properties`, `gradle/wrapper/gradle-wrapper.jar`, `gradlew`, `gradlew.bat`
 - Create: `app/build.gradle.kts`
 - Create: `app/src/main/AndroidManifest.xml`
 - Create: `app/src/main/java/com/petroff/transyncai/MainActivity.kt`
-- Create: `app/src/main/res/values/strings.xml`
-- Create: `app/src/main/res/values/themes.xml`
+- Create: `app/src/main/res/values/strings.xml`, `app/src/main/res/values/colors.xml`, `app/src/main/res/values/themes.xml`
+- Create: `app/src/main/res/drawable/ic_launcher_foreground.xml`, `app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`
 - Test: `app/src/androidTest/java/com/petroff/transyncai/MainActivitySmokeTest.kt`
 
 **Interfaces:** none yet (this task produces the buildable shell everything else attaches to).
@@ -174,11 +174,12 @@ include(":app")
 ```kotlin
 plugins {
     id("com.android.application") version "9.3.0" apply false
-    id("org.jetbrains.kotlin.android") version "2.3.20" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.20" apply false
     id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20" apply false
 }
 ```
+
+(No separate `org.jetbrains.kotlin.android` plugin — AGP 9.0+ has built-in Kotlin support and rejects that plugin as redundant. Discovered and fixed during Task 2; see its ledger entry.)
 
 - [ ] **Step 5: Write `gradle.properties`**
 
@@ -208,7 +209,16 @@ zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 ```
 
-then run `curl -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v9.5.0/gradle/wrapper/gradle-wrapper.jar` and create a minimal `gradlew` from the official template if `gradle wrapper` isn't available — but try the plain `gradle wrapper --gradle-version 9.5.0` route first, it's simpler.
+then run:
+
+```bash
+curl -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v9.5.0/gradle/wrapper/gradle-wrapper.jar
+curl -o gradlew https://raw.githubusercontent.com/gradle/gradle/v9.5.0/gradlew
+curl -o gradlew.bat https://raw.githubusercontent.com/gradle/gradle/v9.5.0/gradlew.bat
+chmod +x gradlew
+```
+
+Try the plain `gradle wrapper --gradle-version 9.5.0` route first (it's simpler) — only fall back to the manual downloads above if no `gradle` binary is on PATH.
 
 - [ ] **Step 7: Write `app/build.gradle.kts`**
 
@@ -217,7 +227,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
@@ -229,12 +238,12 @@ val localProps = Properties().apply {
 
 android {
     namespace = "com.petroff.transyncai"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.petroff.transyncai"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -259,9 +268,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    // No kotlinOptions block: AGP 9's built-in Kotlin support reads jvmTarget from
+    // compileOptions above; `kotlinOptions` is not a valid DSL member here anymore.
 
     packaging {
         resources {
@@ -354,6 +362,36 @@ Note: the `implementation(files("libs/sherpa-onnx-1.13.6.aar"))` dependency is d
 </resources>
 ```
 
+`AndroidManifest.xml` (Step 8) references `android:icon="@mipmap/ic_launcher"`, so a launcher icon resource is required here too — a minimal placeholder is enough (no design intent implied, can be replaced later):
+
+`app/src/main/res/values/colors.xml`:
+```xml
+<resources>
+    <color name="ic_launcher_background">#3F51B5</color>
+</resources>
+```
+
+`app/src/main/res/drawable/ic_launcher_foreground.xml`:
+```xml
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,34m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0" />
+</vector>
+```
+
+`app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`:
+```xml
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+```
+
 - [ ] **Step 10: Write a placeholder `MainActivity.kt`**
 
 ```kotlin
@@ -412,9 +450,11 @@ Expected: BUILD SUCCESSFUL, 1 test passed (`MainActivitySmokeTest`).
 - [ ] **Step 13: Commit**
 
 ```bash
-git add .gitignore settings.gradle.kts build.gradle.kts gradle.properties gradle/ app/
+git add .gitignore settings.gradle.kts build.gradle.kts gradle.properties gradle/ gradlew gradlew.bat app/
 git commit -m "Scaffold TransyncAI Android project with Compose smoke test"
 ```
+
+(`gradlew`/`gradlew.bat` must be committed alongside `gradle/` — without the launcher scripts the wrapper is unusable from a fresh checkout, and every later task depends on running `./gradlew`.)
 
 (`local.properties` stays untracked per `.gitignore` — confirm with `git status` that it's not staged.)
 
