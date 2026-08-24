@@ -298,8 +298,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
-    implementation(files("libs/sherpa-onnx-1.13.6.aar"))
-
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
@@ -307,9 +305,12 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 ```
+
+Note: the `implementation(files("libs/sherpa-onnx-1.13.6.aar"))` dependency is deliberately **not** declared here — the AAR file itself doesn't exist until Task 7 downloads it, and referencing a missing file dependency would break this task's own build-verification step (Step 12). Task 7 adds that one dependency line once the file is in place.
 
 - [ ] **Step 8: Write `app/src/main/AndroidManifest.xml`**
 
@@ -1137,6 +1138,7 @@ git commit -m "Add model file download-on-first-run logic with TDD coverage"
 
 **Files:**
 - Create: `app/libs/sherpa-onnx-1.13.6.aar`
+- Modify: `app/build.gradle.kts`
 - Create: `app/src/main/java/com/petroff/transyncai/asr/SpeechRecognizer.kt`
 - Create: `app/src/main/java/com/petroff/transyncai/asr/AudioSource.kt`
 - Create: `app/src/main/java/com/petroff/transyncai/asr/MicAudioSource.kt`
@@ -1163,7 +1165,16 @@ curl -L -o /home/petroff/dev/android/transyncai/app/libs/sherpa-onnx-1.13.6.aar 
 Run: `ls -lh app/libs/sherpa-onnx-1.13.6.aar`
 Expected: file exists, several MB in size (bundles native `.so` for arm64-v8a, armeabi-v7a, x86, x86_64 plus the compiled `com.k2fsa.sherpa.onnx` Kotlin API classes — no NDK build needed).
 
-- [ ] **Step 2: Write `SpeechRecognizer.kt` and `AudioSource.kt` interfaces**
+- [ ] **Step 2: Add the AAR dependency to `app/build.gradle.kts`**
+
+Task 2 deliberately left this out (the file didn't exist yet). Add one line to the `dependencies { ... }` block, immediately before `testImplementation("junit:junit:4.13.2")`:
+
+```kotlin
+    implementation(files("libs/sherpa-onnx-1.13.6.aar"))
+
+```
+
+- [ ] **Step 3: Write `SpeechRecognizer.kt` and `AudioSource.kt` interfaces**
 
 ```kotlin
 package com.petroff.transyncai.asr
@@ -1186,7 +1197,7 @@ interface AudioSource {
 }
 ```
 
-- [ ] **Step 3: Implement `MicAudioSource.kt`**
+- [ ] **Step 4: Implement `MicAudioSource.kt`**
 
 ```kotlin
 package com.petroff.transyncai.asr
@@ -1246,7 +1257,7 @@ class MicAudioSource : AudioSource {
 }
 ```
 
-- [ ] **Step 4: Implement `WavFileAudioSource.kt`**
+- [ ] **Step 5: Implement `WavFileAudioSource.kt`**
 
 ```kotlin
 package com.petroff.transyncai.asr
@@ -1288,7 +1299,7 @@ class WavFileAudioSource(
 }
 ```
 
-- [ ] **Step 5: Implement `SherpaOnnxAsrEngine.kt`**
+- [ ] **Step 6: Implement `SherpaOnnxAsrEngine.kt`**
 
 ```kotlin
 package com.petroff.transyncai.asr
@@ -1326,7 +1337,7 @@ class SherpaOnnxAsrEngine(
 }
 ```
 
-- [ ] **Step 6: Implement `OkHttpFileDownloader.kt`**
+- [ ] **Step 7: Implement `OkHttpFileDownloader.kt`**
 
 ```kotlin
 package com.petroff.transyncai.asr
@@ -1346,7 +1357,7 @@ class OkHttpFileDownloader(private val httpClient: OkHttpClient) : FileDownloade
 }
 ```
 
-- [ ] **Step 7: Add the test WAV asset**
+- [ ] **Step 8: Add the test WAV asset**
 
 ```bash
 mkdir -p /home/petroff/dev/android/transyncai/app/src/androidTest/assets/test_wavs
@@ -1354,7 +1365,7 @@ curl -L -o /home/petroff/dev/android/transyncai/app/src/androidTest/assets/test_
   https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26/resolve/main/test_wavs/0.wav
 ```
 
-- [ ] **Step 8: Write the instrumented test**
+- [ ] **Step 9: Write the instrumented test**
 
 ```kotlin
 package com.petroff.transyncai.asr
@@ -1428,15 +1439,15 @@ class SherpaOnnxAsrEngineInstrumentedTest {
 }
 ```
 
-- [ ] **Step 9: Run the instrumented test on the emulator**
+- [ ] **Step 10: Run the instrumented test on the emulator**
 
 Run: `./gradlew :app:connectedDebugAndroidTest --tests "com.petroff.transyncai.asr.SherpaOnnxAsrEngineInstrumentedTest"`
 Expected: BUILD SUCCESSFUL, 1 test passed. (First run downloads ~30MB of model files over the emulator's network — allow extra time.)
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add app/libs/sherpa-onnx-1.13.6.aar app/src/main/java/com/petroff/transyncai/asr/ app/src/androidTest/
+git add app/libs/sherpa-onnx-1.13.6.aar app/build.gradle.kts app/src/main/java/com/petroff/transyncai/asr/ app/src/androidTest/
 git commit -m "Integrate Sherpa-ONNX streaming ASR engine with instrumented WAV test"
 ```
 
@@ -2231,7 +2242,7 @@ git commit -m "Add Settings screen, Keystore-backed settings store, and mic perm
 
 **Interfaces:**
 - Consumes: everything produced in Tasks 3–10.
-- Produces: `class AppContainer(context: Context) { val configRepository, val translator, fun buildAsrEngine(): SpeechRecognizer, val speechRecognizer by lazy }`; `@Composable fun TransyncAiApp(container: AppContainer)`.
+- Produces: `class AppContainer(context: Context) { val configRepository: ConfigRepository, val translator: Translator, fun buildSpeechRecognizer(): SpeechRecognizer }`; `@Composable fun TransyncAiApp(container: AppContainer)`.
 
 - [ ] **Step 1: Implement `AppContainer.kt`**
 
