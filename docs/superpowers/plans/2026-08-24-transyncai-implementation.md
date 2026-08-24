@@ -1899,9 +1899,14 @@ class MainScreenTest {
 
     @Test
     fun viewModeSwitchIsDisabledWhileListening() {
+        // viewMode pinned to TRANSCRIPTION_ONLY: the default BOTH mode renders a
+        // "Translation" panel header that collides with the segmented button's
+        // "Translation" label, making onNodeWithText("Translation") match 2 nodes.
+        // TRANSCRIPTION_ONLY hides that panel, leaving only the button — still fully
+        // exercises "all 3 buttons disabled while listening."
         composeRule.setContent {
             MainScreen(
-                uiState = SessionUiState(isListening = true),
+                uiState = SessionUiState(isListening = true, viewMode = ViewMode.TRANSCRIPTION_ONLY),
                 languagePairs = DEFAULT_LANGUAGE_PAIRS,
                 selectedIndex = 0,
                 onSelectLanguagePair = {},
@@ -1972,12 +1977,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.petroff.transyncai.config.LanguagePair
 import com.petroff.transyncai.session.SessionUiState
 import com.petroff.transyncai.session.ViewMode
 
+// TopAppBar / ExposedDropdownMenuBox / ExposedDropdownMenuDefaults.TrailingIcon are
+// @RequiresOptIn(ERROR) in this project's Compose BOM (2026.08.00) — opt-in required
+// to compile, zero behavior change.
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     uiState: SessionUiState,
@@ -2056,6 +2066,7 @@ private fun ViewMode.label(): String = when (this) {
     ViewMode.TRANSLATION_ONLY -> "Translation"
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LanguagePairDropdown(
     languagePairs: List<LanguagePair>,
