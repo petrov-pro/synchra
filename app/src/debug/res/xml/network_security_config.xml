@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-build-only network security config. It permits plaintext HTTP to loopback/emulator-host
+  addresses only, so E2ETranslationFlowTest (Task 12) can point KimiTranslationClient at a local
+  MockWebServer over http://127.0.0.1:<port>. This file lives under src/debug, not src/main, so
+  release builds (which only ever talk to the real HTTPS Kimi API) are unaffected and keep the
+  platform's default cleartext-blocking behavior.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

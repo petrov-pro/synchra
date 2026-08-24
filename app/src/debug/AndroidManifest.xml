@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      Wires in the debug-only network_security_config.xml (see res/xml) so debug builds — and
+      connectedDebugAndroidTest, which runs against this variant — can reach a local MockWebServer
+      over plaintext HTTP for E2ETranslationFlowTest (Task 12). Merged only into debug, never
+      release, via Gradle's debug/release manifest merging.
+    -->
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+</manifest>
