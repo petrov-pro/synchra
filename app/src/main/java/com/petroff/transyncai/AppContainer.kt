@@ -39,8 +39,14 @@ class AppContainer(private val context: Context) {
 
     fun buildSpeechRecognizer(): SpeechRecognizer {
         val modelDir = File(context.filesDir, "model")
-        val paths = ModelFileProvider(OkHttpFileDownloader(httpClient), modelDir).ensureModelFiles()
+        // ensureModelFiles() does blocking network I/O — it must NOT run here.
+        // buildSpeechRecognizer() is called from SessionViewModelFactory.create(),
+        // which Compose's viewModel() invokes synchronously during composition
+        // (main thread). Deferring it into the lazy recognizerFactory below means
+        // it only runs inside SherpaOnnxAsrEngine's background init thread (Task 7),
+        // when the user actually taps Start — never on the main thread.
         val recognizerFactory = {
+            val paths = ModelFileProvider(OkHttpFileDownloader(httpClient), modelDir).ensureModelFiles()
             OnlineRecognizer(
                 config = OnlineRecognizerConfig(
                     featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80),

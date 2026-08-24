@@ -33,6 +33,16 @@ class SessionViewModel(
         _uiState.update { it.copy(viewMode = mode, canStart = computeCanStart(mode)) }
     }
 
+    /**
+     * Re-checks canStart against the current ConfigRepository state without changing
+     * viewMode. Call this whenever config may have changed outside this ViewModel's own
+     * setters — e.g. after returning from Settings, where the API key was saved via
+     * ConfigRepository directly, not through this ViewModel.
+     */
+    fun refreshCanStart() {
+        _uiState.update { it.copy(canStart = computeCanStart(it.viewMode)) }
+    }
+
     private fun computeCanStart(mode: ViewMode): Boolean {
         val needsTranslation = mode != ViewMode.TRANSCRIPTION_ONLY
         return !needsTranslation || !configRepository.getConfig().apiKey.isNullOrBlank()

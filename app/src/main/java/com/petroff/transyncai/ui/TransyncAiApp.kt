@@ -32,10 +32,13 @@ fun TransyncAiApp(container: AppContainer) {
                 // Re-read config whenever the visible screen changes, so edits made in
                 // Settings (API key, buffer size) are picked up as soon as the user
                 // navigates back to Main, without needing ConfigRepository to be reactive.
+                // Also nudge the ViewModel's own canStart, which ConfigRepository changes
+                // don't otherwise propagate into (canStart only recomputes on init/setViewMode).
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 var config by remember { mutableStateOf(container.configRepository.getConfig()) }
                 LaunchedEffect(backStackEntry) {
                     config = container.configRepository.getConfig()
+                    sessionViewModel.refreshCanStart()
                 }
 
                 NavHost(navController = navController, startDestination = "main") {

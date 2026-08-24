@@ -109,6 +109,18 @@ class SessionViewModelTest {
     }
 
     @Test
+    fun `refreshCanStart picks up a key saved directly via ConfigRepository`() {
+        configRepository.setApiKey("")
+        viewModel.setViewMode(ViewMode.BOTH)
+        assertFalse(viewModel.uiState.value.canStart)
+
+        configRepository.setApiKey("sk-saved-in-settings")
+        viewModel.refreshCanStart()
+
+        assertTrue(viewModel.uiState.value.canStart)
+    }
+
+    @Test
     fun `stop stops the recognizer and updates state`() {
         viewModel.start()
         viewModel.stop()
