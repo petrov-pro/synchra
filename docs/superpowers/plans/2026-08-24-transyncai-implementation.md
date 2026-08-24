@@ -1434,8 +1434,6 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import java.io.File
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -1492,15 +1490,23 @@ class SherpaOnnxAsrEngineInstrumentedTest {
         val engine = SherpaOnnxAsrEngine(audioSource, recognizerFactory)
 
         val finalTexts = mutableListOf<String>()
-        val latch = CountDownLatch(1)
         engine.start { segment ->
             if (segment.isFinal) {
                 finalTexts.add(segment.text)
-                latch.countDown()
             }
         }
 
-        latch.await(30, TimeUnit.SECONDS)
+        // Do NOT stop() after the first final segment: the recognizer can legitimately
+        // emit more than one final segment for this clip (e.g. a natural mid-sentence
+        // pause between "EARLY" and "NIGHTFALL" also satisfies the tuned endpoint rule
+        // above) — stopping early would cut off the rest of the WAV before the target
+        // phrase is decoded. 0.wav is ~6.6s; WavFileAudioSource's feed loop terminates
+        // naturally on its own once the file is exhausted, independent of stop() — wait
+        // generously for that instead of racing an early stop() against in-progress
+        // decoding. Accumulating every final segment and asserting only after the full
+        // clip has played is robust to exactly how many times/where endpoints fire
+        // internally.
+        Thread.sleep(20_000)
         engine.stop()
 
         val recognized = finalTexts.joinToString(" ").uppercase()
