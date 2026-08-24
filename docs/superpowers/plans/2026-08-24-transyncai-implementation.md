@@ -1841,6 +1841,8 @@ git commit -m "Add SessionViewModel orchestration with TDD coverage"
 ```kotlin
 package com.petroff.transyncai.ui
 
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -1893,6 +1895,42 @@ class MainScreenTest {
 
         composeRule.onNodeWithText("hello world").assertExists()
         composeRule.onNodeWithText("should not show").assertDoesNotExist()
+    }
+
+    @Test
+    fun viewModeSwitchIsDisabledWhileListening() {
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(isListening = true),
+                languagePairs = DEFAULT_LANGUAGE_PAIRS,
+                selectedIndex = 0,
+                onSelectLanguagePair = {},
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Both").assertIsNotEnabled()
+        composeRule.onNodeWithText("Transcription").assertIsNotEnabled()
+        composeRule.onNodeWithText("Translation").assertIsNotEnabled()
+    }
+
+    @Test
+    fun viewModeSwitchIsEnabledWhenNotListening() {
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(isListening = false),
+                languagePairs = DEFAULT_LANGUAGE_PAIRS,
+                selectedIndex = 0,
+                onSelectLanguagePair = {},
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Both").assertIsEnabled()
     }
 }
 ```
@@ -1971,11 +2009,18 @@ fun MainScreen(
         ) {
             LanguagePairDropdown(languagePairs, selectedIndex, onSelectLanguagePair)
 
+            // Disabled while listening: SessionViewModel's translate-gate (Task 8) checks
+            // viewMode at segment-arrival time, not whether a key was present when the
+            // session started — switching into Both/Translation-only mid-session with no
+            // key set would surface a (harmless, no-network-call) error rather than being
+            // caught proactively. Locking the switch while isListening closes that gap at
+            // the UI layer instead of reworking already-reviewed ViewModel logic.
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 ViewMode.entries.forEachIndexed { index, mode ->
                     SegmentedButton(
                         selected = uiState.viewMode == mode,
                         onClick = { onViewModeChange(mode) },
+                        enabled = !uiState.isListening,
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = ViewMode.entries.size),
                     ) {
                         Text(mode.label())
@@ -2047,7 +2092,7 @@ private fun LanguagePairDropdown(
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `./gradlew :app:connectedDebugAndroidTest --tests "com.petroff.transyncai.ui.MainScreenTest"`
-Expected: BUILD SUCCESSFUL, 2 tests passed.
+Expected: BUILD SUCCESSFUL, 4 tests passed.
 
 - [ ] **Step 5: Commit**
 
