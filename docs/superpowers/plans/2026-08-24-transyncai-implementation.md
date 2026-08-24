@@ -2623,11 +2623,71 @@ git commit -m "Wire AppContainer, navigation, and MainActivity into a runnable a
 
 **Files:**
 - Create: `app/src/androidTest/java/com/petroff/transyncai/E2ETranslationFlowTest.kt`
+- Create: `app/src/androidTest/java/com/petroff/transyncai/config/FakeSettingsStore.kt`
+- Create: `app/src/debug/AndroidManifest.xml`
+- Create: `app/src/debug/res/xml/network_security_config.xml`
 
 **Interfaces:**
 - Consumes: `TransyncAiApp`, `AppContainer` (Task 11), `WavFileAudioSource` (Task 7), `ConfigRepository` (Task 4).
 
 Real device audio routing through the emulator is unreliable to script deterministically, so this e2e test reuses the `WavFileAudioSource` from Task 7 to drive the full pipeline (ASR → buffer → translation → UI) end-to-end without depending on emulator mic hardware, and points the Kimi client at a local `MockWebServer` (running on-device inside the instrumentation process, reachable at `127.0.0.1`) so the test doesn't depend on a real network call or a real API key.
+
+Two supporting files are needed beyond the test itself, both discovered while first implementing this task:
+
+1. **`app/src/androidTest/java/com/petroff/transyncai/config/FakeSettingsStore.kt`** — `app/src/test` (Task 4's unit tests) and `app/src/androidTest` are separate Gradle compilation units with no visibility into each other, so the test-only `FakeSettingsStore` from Task 4 isn't reachable from an instrumented test. A 12-line duplicate here is the standard, surgical fix (sharing the whole `src/test/java` tree into `androidTest` was considered and rejected — it would also compile and duplicate-run every unrelated JVM unit test class as an instrumented test):
+
+```kotlin
+package com.petroff.transyncai.config
+
+// Duplicated from app/src/test/java/com/petroff/transyncai/config/FakeSettingsStore.kt
+// (Task 4's unit tests). The unit-test (`test`) and instrumented-test (`androidTest`) source
+// sets are separate Gradle compilation units, so a class in one is not visible to the other.
+// E2ETranslationFlowTest (Task 12) needs an in-memory SettingsStore double here.
+class FakeSettingsStore : SettingsStore {
+    private val strings = mutableMapOf<String, String>()
+    private val ints = mutableMapOf<String, Int>()
+
+    override fun getString(key: String, default: String) = strings[key] ?: default
+    override fun putString(key: String, value: String) { strings[key] = value }
+    override fun getInt(key: String, default: Int) = ints[key] ?: default
+    override fun putInt(key: String, value: Int) { ints[key] = value }
+    override fun contains(key: String) = strings.containsKey(key) || ints.containsKey(key)
+}
+```
+
+2. **`app/src/debug/AndroidManifest.xml`** and **`app/src/debug/res/xml/network_security_config.xml`** — Android blocks plaintext HTTP by default since API 28, and `KimiTranslationClient`'s `OkHttpClient` call to the local `MockWebServer` (`http://127.0.0.1:<port>`) is plaintext. Scoped to the `debug` build variant only (`src/debug`, not `src/main`) so the release build — which only ever talks to the real HTTPS Kimi API — keeps the platform's default cleartext-blocking behavior untouched. `src/main`'s manifest declares no `android:networkSecurityConfig`, so this merges in cleanly with no `tools:replace` needed:
+
+```xml
+<!-- app/src/debug/AndroidManifest.xml -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      Wires in the debug-only network_security_config.xml (see res/xml) so debug builds — and
+      connectedDebugAndroidTest, which runs against this variant — can reach a local MockWebServer
+      over plaintext HTTP for E2ETranslationFlowTest (Task 12). Merged only into debug, never
+      release, via Gradle's debug/release manifest merging.
+    -->
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+</manifest>
+```
+
+```xml
+<!-- app/src/debug/res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-build-only network security config. It permits plaintext HTTP to loopback/emulator-host
+  addresses only, so E2ETranslationFlowTest (Task 12) can point KimiTranslationClient at a local
+  MockWebServer over http://127.0.0.1:<port>. This file lives under src/debug, not src/main, so
+  release builds (which only ever talk to the real HTTPS Kimi API) are unaffected and keep the
+  platform's default cleartext-blocking behavior.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>
+```
 
 - [ ] **Step 1: Write the e2e test**
 
@@ -2747,9 +2807,12 @@ class E2ETranslationFlowTest {
         val engine = SherpaOnnxAsrEngine(audioSource, recognizerFactory)
         val sessionViewModel = SessionViewModel(engine, translator, configRepository)
 
-        composeRule.setContent {
-            TransyncAiApp(container = AppContainer(context))
-        }
+        // No composeRule.setContent() call here: MainActivity.onCreate() (Task 11) already
+        // calls setContent { TransyncAiApp(container) } itself the moment
+        // createAndroidComposeRule<MainActivity> launches the Activity — calling
+        // setContent() again throws IllegalStateException. The Activity's own composition
+        // is sufficient to host what composeRule.waitUntil needs; this test's assertions
+        // read sessionViewModel.uiState directly, not the Activity's Compose tree.
 
         // Drive the already-constructed pipeline directly rather than via AppContainer's
         // real mic-backed recognizer, since this test injects the WAV-backed engine above.
