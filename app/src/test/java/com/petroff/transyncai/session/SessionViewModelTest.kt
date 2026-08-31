@@ -4,6 +4,7 @@ import com.petroff.transyncai.config.ConfigRepository
 import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.FakeSettingsStore
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -149,6 +150,26 @@ class SessionViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(historyRepository.addedRecords.isEmpty())
+    }
+
+    @Test
+    fun `stop waits for an in-flight translation before saving the history record`() = runTest(dispatcher) {
+        val translationGate = CompletableDeferred<Unit>()
+        translator.beforeReturn = { translationGate.await() }
+        viewModel.start()
+        recognizer.emit("hello world", isFinal = true)
+        dispatcher.scheduler.runCurrent() // let the queue consumer reach translate() and suspend on the gate
+
+        viewModel.stop()
+        dispatcher.scheduler.runCurrent() // let stop()'s save coroutine start and suspend on translationJob.join()
+
+        assertTrue(historyRepository.addedRecords.isEmpty())
+
+        translationGate.complete(Unit)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, historyRepository.addedRecords.size)
+        assertEquals("translated", historyRepository.addedRecords.single().translatedText)
     }
 
     @Test

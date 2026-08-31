@@ -40,6 +40,7 @@ class SessionViewModel(
     private var contextBuffer = ContextBuffer(configRepository.getConfig().bufferSize)
     private var chunker = TranslationChunker(minChunkWords = configRepository.getConfig().chunkSizeWords)
     private var translationQueue: Channel<QueuedChunk>? = null
+    private var translationJob: Job? = null
 
     init {
         _uiState.update { it.copy(canStart = computeCanStart(it.viewMode)) }
@@ -82,17 +83,30 @@ class SessionViewModel(
         // of order (a later-committed chunk's request finishing before an earlier one's).
         val queue = Channel<QueuedChunk>(Channel.UNLIMITED)
         translationQueue = queue
-        viewModelScope.launch { processTranslationQueue(queue) }
+        translationJob = viewModelScope.launch { processTranslationQueue(queue) }
 
         speechRecognizer.start { segment -> onSegment(segment, config) }
     }
 
     fun stop() {
         speechRecognizer.stop()
-        translationQueue?.close()
-        translationQueue = null
-        saveHistoryRecordIfNeeded()
+        // Flip isListening immediately so the UI responds the instant the customer taps
+        // Stop — the history save below waits on in-flight translations and must not
+        // delay that.
         _uiState.update { it.copy(isListening = false) }
+        val queue = translationQueue
+        val job = translationJob
+        translationQueue = null
+        translationJob = null
+        viewModelScope.launch {
+            queue?.close()
+            // Wait for processTranslationQueue's loop to fully drain and exit before
+            // snapshotting uiState into the history record — otherwise a translation
+            // still in flight when Stop was tapped would silently be missing from the
+            // saved record, with no way to fix that after the fact.
+            job?.join()
+            saveHistoryRecordIfNeeded()
+        }
     }
 
     private fun saveHistoryRecordIfNeeded() {
