@@ -6,9 +6,11 @@ import androidx.activity.compose.setContent
 import com.petroff.transyncai.ui.TransyncAiApp
 
 class MainActivity : ComponentActivity() {
+    internal val container: AppContainer
+        get() = (application as TransyncApplication).container
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val container = AppContainer(applicationContext)
         setContent {
             TransyncAiApp(container)
         }

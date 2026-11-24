@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
+import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,4 +26,16 @@ class MainActivitySmokeTest {
     fun launchesAndShowsAppName() {
         composeRule.onNodeWithText("TransyncAI").assertExists()
     }
+
+    @Test
+    fun rotationKeepsTheSameAppContainer() {
+        // A container per Activity reopened the database and HTTP clients on every rotation.
+        val before = composeRule.activity.container
+        composeRule.activityRule.scenario.recreate()
+        var after: AppContainer? = null
+        composeRule.activityRule.scenario.onActivity { after = it.container }
+
+        assertSame(before, after)
+    }
 }
+
