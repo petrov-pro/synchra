@@ -7,9 +7,12 @@ import com.petroff.transyncai.asr.AsrSegment
 import com.petroff.transyncai.asr.SpeechRecognizer
 import com.petroff.transyncai.config.AppConfig
 import com.petroff.transyncai.config.ConfigRepository
+import com.petroff.transyncai.config.Engine
 import com.petroff.transyncai.context.ContextBuffer
 import com.petroff.transyncai.history.ConversationRecord
 import com.petroff.transyncai.history.HistoryRepository
+import com.petroff.transyncai.soniox.LiveRequest
+import com.petroff.transyncai.soniox.SpeechTranslator
 import com.petroff.transyncai.translate.Translator
 import java.util.UUID
 import kotlinx.coroutines.Job
@@ -32,6 +35,8 @@ class SessionViewModel(
     private val translator: Translator,
     private val configRepository: ConfigRepository,
     private val historyRepository: HistoryRepository,
+    // Used instead of speechRecognizer + translator when the Soniox engine is selected.
+    private val speechTranslator: SpeechTranslator,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SessionUiState())
@@ -41,6 +46,7 @@ class SessionViewModel(
     private var chunker = TranslationChunker(minChunkWords = configRepository.getConfig().chunkSizeWords)
     private var translationQueue: Channel<QueuedChunk>? = null
     private var translationJob: Job? = null
+    private var sonioxActive = false
 
     init {
         _uiState.update { it.copy(canStart = computeCanStart(it.viewMode)) }
@@ -61,14 +67,22 @@ class SessionViewModel(
     }
 
     private fun computeCanStart(mode: ViewMode): Boolean {
+        val config = configRepository.getConfig()
+        // Soniox both recognizes and translates, so its key is needed in every mode.
+        if (config.engine == Engine.SONIOX) return !config.sonioxApiKey.isNullOrBlank()
         val needsTranslation = mode != ViewMode.TRANSCRIPTION_ONLY
-        return !needsTranslation || !configRepository.getConfig().apiKey.isNullOrBlank()
+        return !needsTranslation || !config.apiKey.isNullOrBlank()
     }
 
     fun start() {
         val config = configRepository.getConfig()
         if (!computeCanStart(_uiState.value.viewMode)) {
-            _uiState.update { it.copy(canStart = false, errorMessage = "Set your Anthropic API key in Settings") }
+            val keyName = if (config.engine == Engine.SONIOX) "Soniox" else "Anthropic"
+            _uiState.update { it.copy(canStart = false, errorMessage = "Set your $keyName API key in Settings") }
+            return
+        }
+        if (config.engine == Engine.SONIOX) {
+            startSoniox(config)
             return
         }
 
@@ -89,6 +103,13 @@ class SessionViewModel(
     }
 
     fun stop() {
+        if (sonioxActive) {
+            // History is saved from startSoniox's onFinished, once Soniox has flushed the last
+            // phrase and its translation.
+            speechTranslator.stop()
+            _uiState.update { it.copy(isListening = false) }
+            return
+        }
         speechRecognizer.stop()
         // Flip isListening immediately so the UI responds the instant the customer taps
         // Stop — the history save below waits on in-flight translations and must not
@@ -107,6 +128,31 @@ class SessionViewModel(
             job?.join()
             saveHistoryRecordIfNeeded()
         }
+    }
+
+    private fun startSoniox(config: AppConfig) {
+        sonioxActive = true
+        _uiState.update {
+            it.copy(isListening = true, sourceText = "", translatedText = "", errorMessage = null, canStart = true)
+        }
+        val pair = config.selectedLanguagePair
+        val translate = _uiState.value.viewMode != ViewMode.TRANSCRIPTION_ONLY
+        speechTranslator.start(
+            LiveRequest(
+                sourceLang = pair.sourceCode,
+                targetLang = if (translate) pair.targetCode else null,
+                context = config.conversationContext.ifBlank { config.generalContext },
+            ),
+            onUpdate = { live -> _uiState.update { it.copy(sourceText = live.source, translatedText = live.translation) } },
+            onError = { message -> _uiState.update { it.copy(errorMessage = message) } },
+            onFinished = { live ->
+                sonioxActive = false
+                _uiState.update {
+                    it.copy(isListening = false, sourceText = live.source, translatedText = live.translation)
+                }
+                saveHistoryRecordIfNeeded()
+            },
+        )
     }
 
     private fun saveHistoryRecordIfNeeded() {

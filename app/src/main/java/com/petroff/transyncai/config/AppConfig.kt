@@ -14,6 +14,8 @@ data class AppConfig(
     // generalContext when non-blank (see AppConfig.effectiveContext); persists across app
     // restarts like everything else here, but is meant to be replaced each new conversation.
     val conversationContext: String = "",
+    val engine: Engine = Engine.LOCAL,
+    val sonioxApiKey: String? = null,
 ) {
     val selectedLanguagePair: LanguagePair
         get() = languagePairs[selectedLanguagePairIndex.coerceIn(languagePairs.indices)]

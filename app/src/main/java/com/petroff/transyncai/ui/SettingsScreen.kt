@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -19,6 +21,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +45,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.petroff.transyncai.config.Engine
 import com.petroff.transyncai.config.LanguagePair
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,8 +66,14 @@ fun SettingsScreen(
     // Set when a view-mode tab redirected here because no key was set yet (see MainScreen) —
     // most callers (opening Settings via the gear icon) leave this false.
     autoFocusApiKey: Boolean = false,
+    currentEngine: Engine = Engine.LOCAL,
+    currentSonioxApiKey: String? = null,
+    onSaveEngine: (Engine) -> Unit = {},
+    onSaveSonioxApiKey: (String) -> Unit = {},
 ) {
     var apiKeyField by remember { mutableStateOf(currentApiKey ?: "") }
+    var engineField by remember { mutableStateOf(currentEngine) }
+    var sonioxApiKeyField by remember { mutableStateOf(currentSonioxApiKey ?: "") }
     var bufferSizeField by remember { mutableStateOf(currentBufferSize.toFloat()) }
     var chunkSizeField by remember { mutableStateOf(currentChunkSizeWords.toFloat()) }
     var generalContextField by remember { mutableStateOf(currentGeneralContext) }
@@ -96,7 +108,7 @@ fun SettingsScreen(
         },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Must live inside Scaffold's content slot (a SubcomposeLayout, composed on a
@@ -120,6 +132,16 @@ fun SettingsScreen(
             }
 
             FieldRow(
+                field = "Recognition & translation",
+                helpText = "On device: speech is recognized on the phone (Nemotron) and translated " +
+                    "by Claude. Soniox (cloud): audio is streamed to Soniox, which recognizes and " +
+                    "translates it in one go (about \$0.12-0.23 per hour of audio).",
+                onShowHelp = { helpDialog = it },
+            ) {
+                EngineSelector(engineField, onSelect = { engineField = it })
+            }
+
+            FieldRow(
                 field = "Anthropic API key",
                 helpText = "Your Anthropic (Claude) API key, used to call the translation service. " +
                     "Required for Both and Translation modes; Transcription-only works without it.",
@@ -131,6 +153,21 @@ fun SettingsScreen(
                     label = { Text("Anthropic API key") },
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth().focusRequester(apiKeyFocusRequester),
+                )
+            }
+
+            FieldRow(
+                field = "Soniox API key",
+                helpText = "Your Soniox API key, used only when Recognition & translation is set " +
+                    "to Soniox (cloud).",
+                onShowHelp = { helpDialog = it },
+            ) {
+                TextField(
+                    value = sonioxApiKeyField,
+                    onValueChange = { sonioxApiKeyField = it },
+                    label = { Text("Soniox API key") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
@@ -199,6 +236,8 @@ fun SettingsScreen(
 
             Button(onClick = {
                 onSaveApiKey(apiKeyField)
+                onSaveEngine(engineField)
+                onSaveSonioxApiKey(sonioxApiKeyField)
                 onSaveBufferSize(bufferSizeField.toInt())
                 onSaveChunkSizeWords(chunkSizeField.toInt())
                 onSaveGeneralContext(generalContextField)
@@ -226,6 +265,23 @@ private fun FieldRow(
         }
         IconButton(onClick = { onShowHelp(HelpDialogContent(field, helpText)) }) {
             Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Help: $field")
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EngineSelector(selected: Engine, onSelect: (Engine) -> Unit) {
+    val labels = mapOf(Engine.LOCAL to "On device", Engine.SONIOX to "Soniox (cloud)")
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        Engine.entries.forEachIndexed { index, engine ->
+            SegmentedButton(
+                selected = engine == selected,
+                onClick = { onSelect(engine) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = Engine.entries.size),
+            ) {
+                Text(labels.getValue(engine))
+            }
         }
     }
 }

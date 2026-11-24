@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.petroff.transyncai.AppContainer
+import com.petroff.transyncai.config.Engine
 import com.petroff.transyncai.session.SessionViewModel
 import com.petroff.transyncai.session.SessionViewModelFactory
 
@@ -67,7 +68,11 @@ fun TransyncAiApp(container: AppContainer) {
                                 // Context dialog in the same session would show stale text.
                                 config = container.configRepository.getConfig()
                             },
-                            hasApiKey = !config.apiKey.isNullOrBlank(),
+                            hasApiKey = if (config.engine == Engine.SONIOX) {
+                                !config.sonioxApiKey.isNullOrBlank()
+                            } else {
+                                !config.apiKey.isNullOrBlank()
+                            },
                             onApiKeyRequired = {
                                 focusApiKeyOnSettingsOpen = true
                                 navController.navigate("settings")
@@ -89,6 +94,10 @@ fun TransyncAiApp(container: AppContainer) {
                             onSaveGeneralContext = { container.configRepository.setGeneralContext(it) },
                             onBack = { navController.popBackStack() },
                             autoFocusApiKey = focusApiKeyOnSettingsOpen,
+                            currentEngine = config.engine,
+                            currentSonioxApiKey = config.sonioxApiKey,
+                            onSaveEngine = { container.configRepository.setEngine(it) },
+                            onSaveSonioxApiKey = { container.configRepository.setSonioxApiKey(it) },
                         )
                     }
                 }

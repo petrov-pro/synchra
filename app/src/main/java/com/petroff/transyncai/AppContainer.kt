@@ -14,6 +14,8 @@ import com.petroff.transyncai.config.EncryptedPrefsSettingsStore
 import com.petroff.transyncai.history.HistoryRepository
 import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
+import com.petroff.transyncai.soniox.SonioxSpeechTranslator
+import com.petroff.transyncai.soniox.SpeechTranslator
 import com.petroff.transyncai.translate.ClaudeTranslationClient
 import com.petroff.transyncai.translate.Translator
 import com.k2fsa.sherpa.onnx.EndpointConfig
@@ -49,6 +51,12 @@ class AppContainer(private val context: Context) {
     val translator: Translator = ClaudeTranslationClient(
         baseUrl = configRepository.getConfig().apiBaseUrl,
         apiKeyProvider = { configRepository.getConfig().apiKey },
+    )
+
+    fun buildSpeechTranslator(): SpeechTranslator = SonioxSpeechTranslator(
+        audioSource = MicAudioSource(),
+        httpClient = httpClient,
+        apiKeyProvider = { configRepository.getConfig().sonioxApiKey },
     )
 
     fun buildSpeechRecognizer(): SpeechRecognizer {

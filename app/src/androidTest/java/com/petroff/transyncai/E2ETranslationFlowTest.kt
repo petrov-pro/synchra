@@ -13,6 +13,7 @@ import com.petroff.transyncai.config.FakeSettingsStore
 import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
 import com.petroff.transyncai.session.SessionViewModel
+import com.petroff.transyncai.soniox.SonioxSpeechTranslator
 import com.petroff.transyncai.translate.ClaudeTranslationClient
 import com.k2fsa.sherpa.onnx.EndpointConfig
 import com.k2fsa.sherpa.onnx.EndpointRule
@@ -135,6 +136,8 @@ class E2ETranslationFlowTest {
             translator,
             configRepository,
             RoomHistoryRepository(database.conversationRecordDao()),
+            // Local engine under test; the Soniox path has its own E2E test.
+            SonioxSpeechTranslator(audioSource, OkHttpClient(), apiKeyProvider = { null }),
         )
 
         // MainActivity.onCreate() (Task 11) already calls setContent { TransyncAiApp(container) }

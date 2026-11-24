@@ -13,6 +13,7 @@ class SessionViewModelFactory(private val container: AppContainer) : ViewModelPr
             translator = container.translator,
             configRepository = container.configRepository,
             historyRepository = container.historyRepository,
+            speechTranslator = container.buildSpeechTranslator(),
         ) as T
     }
 }

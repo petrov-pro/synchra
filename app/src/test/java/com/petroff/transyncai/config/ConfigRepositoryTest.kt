@@ -99,4 +99,23 @@ class ConfigRepositoryTest {
         assertEquals("sk-ant-new", repo.getConfig().apiKey)
         assertEquals("", store.getString("api_key", ""))
     }
+
+    @Test
+    fun `defaults to the local engine with no Soniox key`() {
+        val config = repo.getConfig()
+        assertEquals(Engine.LOCAL, config.engine)
+        assertNull(config.sonioxApiKey)
+    }
+
+    @Test
+    fun `persists the engine choice and the Soniox key separately from the Anthropic key`() {
+        repo.setApiKey("sk-ant-1")
+        repo.setEngine(Engine.SONIOX)
+        repo.setSonioxApiKey("snx-1")
+
+        val config = repo.getConfig()
+        assertEquals(Engine.SONIOX, config.engine)
+        assertEquals("snx-1", config.sonioxApiKey)
+        assertEquals("sk-ant-1", config.apiKey)
+    }
 }

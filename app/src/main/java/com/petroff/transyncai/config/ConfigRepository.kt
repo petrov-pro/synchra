@@ -9,6 +9,8 @@ interface ConfigRepository {
     fun setSelectedLanguagePairIndex(index: Int)
     fun setGeneralContext(context: String)
     fun setConversationContext(context: String)
+    fun setEngine(engine: Engine)
+    fun setSonioxApiKey(key: String)
 }
 
 class DefaultConfigRepository(
@@ -28,6 +30,8 @@ class DefaultConfigRepository(
         chunkSizeWords = store.getInt(KEY_CHUNK_SIZE_WORDS, defaultChunkSizeWords),
         generalContext = store.getString(KEY_GENERAL_CONTEXT, ""),
         conversationContext = store.getString(KEY_CONVERSATION_CONTEXT, ""),
+        engine = Engine.entries.firstOrNull { it.name == store.getString(KEY_ENGINE, "") } ?: Engine.LOCAL,
+        sonioxApiKey = store.getString(KEY_SONIOX_API_KEY, "").ifBlank { null },
     )
 
     override fun setApiKey(key: String) {
@@ -53,6 +57,10 @@ class DefaultConfigRepository(
 
     override fun setConversationContext(context: String) = store.putString(KEY_CONVERSATION_CONTEXT, context)
 
+    override fun setEngine(engine: Engine) = store.putString(KEY_ENGINE, engine.name)
+
+    override fun setSonioxApiKey(key: String) = store.putString(KEY_SONIOX_API_KEY, key)
+
     private fun readLanguagePairs(): List<LanguagePair> {
         if (!store.contains(KEY_LANGUAGE_PAIRS)) return defaultLanguagePairs
         val raw = store.getString(KEY_LANGUAGE_PAIRS, "")
@@ -75,6 +83,8 @@ class DefaultConfigRepository(
         private const val KEY_CHUNK_SIZE_WORDS = "chunk_size_words"
         private const val KEY_GENERAL_CONTEXT = "general_context"
         private const val KEY_CONVERSATION_CONTEXT = "conversation_context"
+        private const val KEY_ENGINE = "engine"
+        private const val KEY_SONIOX_API_KEY = "soniox_api_key"
         private const val PAIR_SEPARATOR = ";;"
         private const val FIELD_SEPARATOR = "|"
     }

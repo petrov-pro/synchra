@@ -42,7 +42,7 @@ class SessionViewModelTest {
         )
         configRepository.setApiKey("sk-test")
         historyRepository = FakeHistoryRepository()
-        viewModel = SessionViewModel(recognizer, translator, configRepository, historyRepository)
+        viewModel = SessionViewModel(recognizer, translator, configRepository, historyRepository, FakeSpeechTranslator())
     }
 
     @After
@@ -108,7 +108,7 @@ class SessionViewModelTest {
             defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
             defaultChunkSizeWords = 8,
         )
-        val freshViewModel = SessionViewModel(FakeSpeechRecognizer(), FakeTranslator(), noKeyRepo, FakeHistoryRepository())
+        val freshViewModel = SessionViewModel(FakeSpeechRecognizer(), FakeTranslator(), noKeyRepo, FakeHistoryRepository(), FakeSpeechTranslator())
 
         assertFalse(freshViewModel.uiState.value.canStart)
     }

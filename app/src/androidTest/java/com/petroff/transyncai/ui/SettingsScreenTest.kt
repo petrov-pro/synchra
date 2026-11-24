@@ -6,8 +6,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
+import com.petroff.transyncai.config.Engine
 import com.petroff.transyncai.config.LanguagePair
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -215,5 +217,38 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("English → Spanish").performClick()
 
         assertEquals(1, selectedIndex)
+    }
+
+    @Test
+    fun choosingSonioxAndSavingItsKeyInvokesCallbacks() {
+        var savedEngine: Engine? = null
+        var savedSonioxKey: String? = null
+        composeRule.setContent {
+            SettingsScreen(
+                currentApiKey = null,
+                currentBufferSize = 6,
+                currentChunkSizeWords = 8,
+                currentGeneralContext = "",
+                languagePairs = DEFAULT_LANGUAGE_PAIRS,
+                selectedLanguagePairIndex = 0,
+                onSelectLanguagePair = {},
+                onSaveApiKey = {},
+                onSaveBufferSize = {},
+                onSaveChunkSizeWords = {},
+                onSaveGeneralContext = {},
+                onBack = {},
+                currentEngine = Engine.LOCAL,
+                currentSonioxApiKey = null,
+                onSaveEngine = { savedEngine = it },
+                onSaveSonioxApiKey = { savedSonioxKey = it },
+            )
+        }
+
+        composeRule.onNodeWithText("Soniox (cloud)").performClick()
+        composeRule.onNodeWithText("Soniox API key").performTextInput("snx-abc")
+        composeRule.onNodeWithText("Save").performScrollTo().performClick()
+
+        assertEquals(Engine.SONIOX, savedEngine)
+        assertEquals("snx-abc", savedSonioxKey)
     }
 }
