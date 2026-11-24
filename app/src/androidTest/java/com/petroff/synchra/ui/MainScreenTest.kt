@@ -52,6 +52,24 @@ class MainScreenTest {
     }
 
     @Test
+    fun theAppNameIsShownAsABrandTitle() {
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(),
+                sourceLanguage = english,
+                targetLanguage = russian,
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+            )
+        }
+
+        composeRule.onNodeWithTag("appTitle").assertTextEquals("Synchra")
+    }
+
+    @Test
     fun startStopButtonTogglesLabel() {
         var listening = false
         composeRule.setContent {
