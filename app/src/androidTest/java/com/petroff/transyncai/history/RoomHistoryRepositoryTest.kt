@@ -91,4 +91,15 @@ class RoomHistoryRepositoryTest {
         assertEquals("Обсудили сроки.", byId.summary)
         assertEquals(byId, repository.getRecords().single())
     }
+
+    @Test
+    fun searchIgnoresCaseInRussianToo() = runBlocking {
+        repository.addRecord(record(id = "1").copy(translatedText = "Встреча с Командой"))
+        repository.addRecord(record(id = "2").copy(sourceText = "Meeting with the Team", translatedText = "ничего"))
+
+        assertEquals(listOf("1"), repository.search("встреча с команд").map { it.id })
+        assertEquals(listOf("1"), repository.search("ВСТРЕЧА").map { it.id })
+        assertEquals(listOf("2"), repository.search("meeting WITH").map { it.id })
+    }
 }
+
