@@ -3,7 +3,7 @@
   Debug-build-only network security config. It permits plaintext HTTP to loopback/emulator-host
   addresses only, so instrumented tests can point API clients at a local
   MockWebServer over http://127.0.0.1:<port>. This file lives under src/debug, not src/main, so
-  release builds (which only ever talk to the real HTTPS Anthropic API) are unaffected and keep the
+  release builds (which only ever talk to the real HTTPS services) are unaffected and keep the
   platform's default cleartext-blocking behavior.
 -->
 <network-security-config>
