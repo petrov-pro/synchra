@@ -2,7 +2,7 @@ package com.petroff.transyncai.ui
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
@@ -22,14 +22,16 @@ fun Modifier.copyOnLongPress(label: String, text: String): Modifier {
     val currentText by rememberUpdatedState(text)
     return pointerInput(label) {
         detectTapGestures(onLongPress = {
+            Log.d(TAG, "long press on $label (${currentText.length} chars)")
             if (currentText.isBlank()) return@detectTapGestures
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             context.getSystemService(ClipboardManager::class.java)
                 .setPrimaryClip(ClipData.newPlainText(label, currentText))
-            // Android 13+ shows its own "Copied" confirmation; older versions show nothing.
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-            }
+            // Always confirm: stock Android 13+ has its own copy overlay, but HyperOS (the
+            // target POCO) shows nothing, so the copy looked like it failed.
+            Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
         })
     }
 }
+
+private const val TAG = "TransyncAI/Copy"
