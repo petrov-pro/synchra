@@ -29,6 +29,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.petroff.transyncai.history.ConversationUiState
@@ -97,8 +98,15 @@ fun ConversationScreen(
             if (record == null) return@Column
 
             if (state.view == ConversationView.SUMMARY && record.summary != null) {
-                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                    Text(record.displayTitle(), style = MaterialTheme.typography.headlineSmall)
+                val title = record.displayTitle()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("summaryText")
+                        .copyOnLongPress("Summary", "$title\n\n${record.summary}")
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Text(title, style = MaterialTheme.typography.headlineSmall)
                     Text(
                         record.summary,
                         style = MaterialTheme.typography.bodyLarge,

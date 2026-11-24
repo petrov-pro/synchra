@@ -28,14 +28,22 @@ fun TranscriptPanels(
 ) {
     Column(modifier = modifier) {
         if (viewMode != ViewMode.TRANSLATION_ONLY) {
-            TextPanel(label = "Source", text = sourceText, modifier = Modifier.weight(1f).fillMaxWidth())
+            TextPanel(
+                label = "Source",
+                text = sourceText,
+                modifier = Modifier.weight(1f).fillMaxWidth().testTag("sourcePanel"),
+            )
         }
         // Only between the two panels — nothing to separate in a single-panel view mode.
         if (viewMode == ViewMode.BOTH) {
             HorizontalDivider(modifier = Modifier.testTag("sourceTranslationDivider"))
         }
         if (viewMode != ViewMode.TRANSCRIPTION_ONLY) {
-            TextPanel(label = "Translation", text = translatedText, modifier = Modifier.weight(1f).fillMaxWidth())
+            TextPanel(
+                label = "Translation",
+                text = translatedText,
+                modifier = Modifier.weight(1f).fillMaxWidth().testTag("translationPanel"),
+            )
         }
     }
 }
@@ -46,7 +54,7 @@ private fun TextPanel(label: String, text: String, modifier: Modifier = Modifier
     LaunchedEffect(text) {
         scrollState.animateScrollTo(scrollState.maxValue)
     }
-    Column(modifier = modifier) {
+    Column(modifier = modifier.copyOnLongPress(label, text)) {
         Text(label, style = MaterialTheme.typography.labelLarge)
         Text(
             text = text,
