@@ -35,7 +35,7 @@ class SherpaOnnxAsrEngineInstrumentedTest {
                             joiner = paths.joiner,
                         ),
                         tokens = paths.tokens,
-                        modelType = "zipformer2",
+                        modelType = "nemo_transducer",
                         numThreads = 2,
                     ),
                     // Test-only: the bundled 0.wav has only ~0.4s of trailing silence,

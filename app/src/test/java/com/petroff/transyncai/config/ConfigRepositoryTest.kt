@@ -16,8 +16,9 @@ class ConfigRepositoryTest {
         repo = DefaultConfigRepository(
             store = store,
             defaultBufferSize = 6,
-            defaultApiBaseUrl = "https://api.moonshot.ai/v1",
+            defaultApiBaseUrl = "https://api.anthropic.com",
             defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
+            defaultChunkSizeWords = 8,
         )
     }
 
@@ -25,9 +26,30 @@ class ConfigRepositoryTest {
     fun `falls back to build-time defaults when nothing overridden`() {
         val config = repo.getConfig()
         assertEquals(6, config.bufferSize)
-        assertEquals("https://api.moonshot.ai/v1", config.apiBaseUrl)
+        assertEquals("https://api.anthropic.com", config.apiBaseUrl)
         assertNull(config.apiKey)
         assertEquals(DEFAULT_LANGUAGE_PAIRS, config.languagePairs)
+        assertEquals(8, config.chunkSizeWords)
+        assertEquals("", config.generalContext)
+        assertEquals("", config.conversationContext)
+    }
+
+    @Test
+    fun `setGeneralContext persists and is returned by getConfig`() {
+        repo.setGeneralContext("We're discussing a billing support case")
+        assertEquals("We're discussing a billing support case", repo.getConfig().generalContext)
+    }
+
+    @Test
+    fun `setConversationContext persists and is returned by getConfig`() {
+        repo.setConversationContext("Talking about invoice #123")
+        assertEquals("Talking about invoice #123", repo.getConfig().conversationContext)
+    }
+
+    @Test
+    fun `setChunkSizeWords overrides the default at runtime`() {
+        repo.setChunkSizeWords(12)
+        assertEquals(12, repo.getConfig().chunkSizeWords)
     }
 
     @Test
@@ -59,5 +81,22 @@ class ConfigRepositoryTest {
         )
         repo.setSelectedLanguagePairIndex(1)
         assertEquals("es", repo.getConfig().selectedLanguagePair.targetCode)
+    }
+
+    @Test
+    fun `ignores a legacy Kimi key so it is never sent to the Anthropic API`() {
+        store.putString("api_key", "sk-kimi-old")
+
+        assertNull(repo.getConfig().apiKey)
+    }
+
+    @Test
+    fun `saving a key wipes the legacy Kimi key`() {
+        store.putString("api_key", "sk-kimi-old")
+
+        repo.setApiKey("sk-ant-new")
+
+        assertEquals("sk-ant-new", repo.getConfig().apiKey)
+        assertEquals("", store.getString("api_key", ""))
     }
 }

@@ -41,27 +41,54 @@ fun TransyncAiApp(container: AppContainer) {
                     sessionViewModel.refreshCanStart()
                 }
 
+                // Both navigation paths into Settings set this explicitly (true from a blocked
+                // view-mode tab, false from the gear icon) so it always reflects how the most
+                // recent navigation got here, rather than needing an explicit reset somewhere.
+                var focusApiKeyOnSettingsOpen by remember { mutableStateOf(false) }
+
                 NavHost(navController = navController, startDestination = "main") {
                     composable("main") {
                         MainScreen(
                             uiState = uiState,
-                            languagePairs = config.languagePairs,
-                            selectedIndex = config.selectedLanguagePairIndex,
-                            onSelectLanguagePair = { container.configRepository.setSelectedLanguagePairIndex(it) },
+                            currentLanguagePair = config.selectedLanguagePair,
+                            currentConversationContext = config.conversationContext,
                             onToggleListening = {
                                 if (uiState.isListening) sessionViewModel.stop() else sessionViewModel.start()
                             },
                             onViewModeChange = sessionViewModel::setViewMode,
-                            onOpenSettings = { navController.navigate("settings") },
+                            onOpenSettings = {
+                                focusApiKeyOnSettingsOpen = false
+                                navController.navigate("settings")
+                            },
+                            onSaveConversationContext = {
+                                container.configRepository.setConversationContext(it)
+                                // No navigation happens here (unlike Settings), so refresh the
+                                // locally held config directly — otherwise re-opening the
+                                // Context dialog in the same session would show stale text.
+                                config = container.configRepository.getConfig()
+                            },
+                            hasApiKey = !config.apiKey.isNullOrBlank(),
+                            onApiKeyRequired = {
+                                focusApiKeyOnSettingsOpen = true
+                                navController.navigate("settings")
+                            },
                         )
                     }
                     composable("settings") {
                         SettingsScreen(
                             currentApiKey = config.apiKey,
                             currentBufferSize = config.bufferSize,
+                            currentChunkSizeWords = config.chunkSizeWords,
+                            currentGeneralContext = config.generalContext,
+                            languagePairs = config.languagePairs,
+                            selectedLanguagePairIndex = config.selectedLanguagePairIndex,
+                            onSelectLanguagePair = { container.configRepository.setSelectedLanguagePairIndex(it) },
                             onSaveApiKey = { container.configRepository.setApiKey(it) },
                             onSaveBufferSize = { container.configRepository.setBufferSize(it) },
+                            onSaveChunkSizeWords = { container.configRepository.setChunkSizeWords(it) },
+                            onSaveGeneralContext = { container.configRepository.setGeneralContext(it) },
                             onBack = { navController.popBackStack() },
+                            autoFocusApiKey = focusApiKeyOnSettingsOpen,
                         )
                     }
                 }

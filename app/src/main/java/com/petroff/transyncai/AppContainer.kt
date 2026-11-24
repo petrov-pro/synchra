@@ -14,7 +14,7 @@ import com.petroff.transyncai.config.EncryptedPrefsSettingsStore
 import com.petroff.transyncai.history.HistoryRepository
 import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
-import com.petroff.transyncai.translate.KimiTranslationClient
+import com.petroff.transyncai.translate.ClaudeTranslationClient
 import com.petroff.transyncai.translate.Translator
 import com.k2fsa.sherpa.onnx.EndpointConfig
 import com.k2fsa.sherpa.onnx.EndpointRule
@@ -46,8 +46,7 @@ class AppContainer(private val context: Context) {
         defaultChunkSizeWords = BuildConfig.DEFAULT_CHUNK_SIZE_WORDS,
     )
 
-    val translator: Translator = KimiTranslationClient(
-        httpClient = httpClient,
+    val translator: Translator = ClaudeTranslationClient(
         baseUrl = configRepository.getConfig().apiBaseUrl,
         apiKeyProvider = { configRepository.getConfig().apiKey },
     )
@@ -72,8 +71,8 @@ class AppContainer(private val context: Context) {
                             joiner = paths.joiner,
                         ),
                         tokens = paths.tokens,
-                        modelType = "zipformer2",
-                        numThreads = 2,
+                        modelType = "nemo_transducer",
+                        numThreads = 4,
                     ),
                     // Without this, the library defaults (rule1: 2.4s, rule2: 1.4s trailing
                     // silence) essentially never fire for normal conversational speech —

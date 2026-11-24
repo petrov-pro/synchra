@@ -36,7 +36,7 @@ class SessionViewModelTest {
         configRepository = DefaultConfigRepository(
             store = FakeSettingsStore(),
             defaultBufferSize = 6,
-            defaultApiBaseUrl = "https://api.moonshot.ai/v1",
+            defaultApiBaseUrl = "https://api.anthropic.com",
             defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
             defaultChunkSizeWords = 8,
         )
@@ -104,7 +104,7 @@ class SessionViewModelTest {
         val noKeyRepo = DefaultConfigRepository(
             store = FakeSettingsStore(),
             defaultBufferSize = 6,
-            defaultApiBaseUrl = "https://api.moonshot.ai/v1",
+            defaultApiBaseUrl = "https://api.anthropic.com",
             defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
             defaultChunkSizeWords = 8,
         )

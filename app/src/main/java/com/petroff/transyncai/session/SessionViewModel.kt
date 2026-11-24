@@ -68,7 +68,7 @@ class SessionViewModel(
     fun start() {
         val config = configRepository.getConfig()
         if (!computeCanStart(_uiState.value.viewMode)) {
-            _uiState.update { it.copy(canStart = false, errorMessage = "Set your Kimi API key in Settings") }
+            _uiState.update { it.copy(canStart = false, errorMessage = "Set your Anthropic API key in Settings") }
             return
         }
 
@@ -148,7 +148,7 @@ class SessionViewModel(
 
     // Standing context (conversation context, falling back to general context — see
     // SettingsScreen/the Main screen's Context popup) combined with the rolling transcript of
-    // recently finalized phrases, so Kimi gets both the customer's domain/topic hints and
+    // recently finalized phrases, so the translator gets both the customer's domain/topic hints and
     // continuity with what was just said.
     private fun effectiveContext(config: AppConfig): String {
         val standingContext = config.conversationContext.ifBlank { config.generalContext }

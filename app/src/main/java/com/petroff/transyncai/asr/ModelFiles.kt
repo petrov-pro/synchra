@@ -7,14 +7,19 @@ data class ModelPaths(
     val tokens: String,
 )
 
-private const val MODEL_BASE_URL =
-    "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26/resolve/main"
+// NVIDIA Nemotron streaming 0.6B: 18% WER vs 45% for the old 2023 zipformer on
+// accented (Indian) English — see tools/asr-bench.
+internal const val MODEL_BASE_URL =
+    "https://huggingface.co/csukuangfj/sherpa-onnx-nemotron-speech-streaming-en-0.6b-int8-2026-01-14/resolve/main"
 
 val MODEL_FILES = listOf(
-    "encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
-    "decoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
-    "joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
+    "encoder.int8.onnx",
+    "decoder.int8.onnx",
+    "joiner.int8.onnx",
     "tokens.txt",
 )
+
+/** Identifies the model set on disk; different models can share file names (tokens.txt). */
+const val MODEL_ID = MODEL_BASE_URL
 
 fun modelFileUrl(filename: String): String = "$MODEL_BASE_URL/$filename"

@@ -1,0 +1,8 @@
+sherpa-onnx==2.0.3
+numpy
+jiwer
+soundfile
+pyarrow
+websockets
+anthropic
+httpx

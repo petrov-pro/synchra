@@ -3,7 +3,6 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
 }
 
@@ -30,7 +29,11 @@ android {
         )
         buildConfigField(
             "String", "DEFAULT_API_BASE_URL",
-            "\"${localProps.getProperty("transync.apiBaseUrl", "https://api.moonshot.ai/v1")}\""
+            "\"${localProps.getProperty("transync.apiBaseUrl", "https://api.anthropic.com")}\""
+        )
+        buildConfigField(
+            "int", "DEFAULT_CHUNK_SIZE_WORDS",
+            localProps.getProperty("transync.defaultChunkSizeWords", "8")
         )
     }
 
@@ -53,6 +56,10 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            // android.util.Log (used for on-device debug logging) throws by default in plain
+            // JVM unit tests since the Android framework isn't present there — make it a no-op
+            // returning 0 instead, rather than avoiding Log calls in production code.
+            isReturnDefaultValues = true
         }
     }
 }
@@ -76,7 +83,7 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
+    implementation("com.anthropic:anthropic-java:3.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     implementation("androidx.room:room-runtime:2.8.4")
