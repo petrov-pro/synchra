@@ -124,7 +124,7 @@ fun TransyncAiApp(container: AppContainer) {
                                     ConversationViewModel(
                                         id,
                                         container.historyRepository,
-                                        container.summarizer,
+                                        container.summaryJobs,
                                         container.configRepository,
                                         summarize,
                                     )

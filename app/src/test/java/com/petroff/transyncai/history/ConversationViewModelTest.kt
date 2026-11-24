@@ -9,6 +9,8 @@ import com.petroff.transyncai.session.FakeHistoryRepository
 import com.petroff.transyncai.summary.FakeSummarizer
 import com.petroff.transyncai.summary.SummaryException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -45,8 +47,16 @@ class ConversationViewModelTest {
         summary = summary,
     )
 
+    // App-wide summary work outlives any one conversation screen.
+    private val appScope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    private fun jobs(summarizer: FakeSummarizer) = SummaryJobs(appScope, history, summarizer)
+
     private fun viewModel(summarizer: FakeSummarizer, summarizeOnOpen: Boolean = false) =
-        ConversationViewModel("r1", history, summarizer, config, summarizeOnOpen).also {
+        viewModel(jobs(summarizer), summarizeOnOpen)
+
+    private fun viewModel(jobs: SummaryJobs, summarizeOnOpen: Boolean = false) =
+        ConversationViewModel("r1", history, jobs, config, summarizeOnOpen).also {
             dispatcher.scheduler.advanceUntilIdle()
         }
 
@@ -207,18 +217,39 @@ class ConversationViewModelTest {
     }
 
     @Test
-    fun `cancelled summary saves nothing`() = runTest(dispatcher) {
+    fun `leaving the screen mid-summary still saves the paid-for summary`() = runTest(dispatcher) {
         history.addRecord(record())
         val summarizer = FakeSummarizer(mutableListOf(FakeSummarizer.ok())).apply { gate = CompletableDeferred() }
         val vm = viewModel(summarizer)
 
         vm.onSummaryClick()
         advanceUntilIdle()
-        vm.viewModelScope.cancel()
+        vm.viewModelScope.cancel() // the screen is gone
         summarizer.gate!!.complete(Unit)
         advanceUntilIdle()
 
-        assertNull(history.getRecord("r1")!!.summary)
+        assertEquals("Обсудили сроки.", history.getRecord("r1")!!.summary)
+    }
+
+    @Test
+    fun `reopening during a summary waits for it instead of calling Claude again`() = runTest(dispatcher) {
+        history.addRecord(record())
+        val summarizer = FakeSummarizer(mutableListOf(FakeSummarizer.ok())).apply { gate = CompletableDeferred() }
+        val jobs = jobs(summarizer)
+        val first = viewModel(jobs)
+        first.onSummaryClick()
+        advanceUntilIdle()
+        first.viewModelScope.cancel()
+
+        val second = viewModel(jobs)
+        assertTrue(second.uiState.value.isSummarizing)
+        second.onSummaryClick()
+        summarizer.gate!!.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(1, summarizer.calls)
+        assertEquals(ConversationView.SUMMARY, second.uiState.value.view)
+        assertFalse(second.uiState.value.isSummarizing)
     }
 
     @Test
@@ -230,7 +261,7 @@ class ConversationViewModelTest {
         vm.onSummaryClick()
         runCurrent()
         assertEquals(1, summarizer.calls)
-        advanceTimeBy(ConversationViewModel.RETRY_DELAY_MS - 1)
+        advanceTimeBy(SummaryJobs.RETRY_DELAY_MS - 1)
         runCurrent()
         assertEquals(1, summarizer.calls)
         advanceTimeBy(2)

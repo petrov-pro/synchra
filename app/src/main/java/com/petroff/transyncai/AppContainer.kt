@@ -9,6 +9,7 @@ import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.EncryptedPrefsSettingsStore
 import com.petroff.transyncai.history.HistoryRepository
 import com.petroff.transyncai.history.MIGRATION_1_2
+import com.petroff.transyncai.history.SummaryJobs
 import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
 import com.petroff.transyncai.soniox.SonioxSpeechTranslator
@@ -17,6 +18,9 @@ import com.petroff.transyncai.summary.ClaudeSummarizer
 import com.petroff.transyncai.summary.Summarizer
 import java.io.File
 import kotlin.concurrent.thread
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 
 class AppContainer(private val context: Context) {
@@ -41,6 +45,11 @@ class AppContainer(private val context: Context) {
         baseUrl = configRepository.getConfig().apiBaseUrl,
         apiKeyProvider = { configRepository.getConfig().apiKey },
     )
+
+    // Lives as long as the app process: summary requests outlive the screen that started them.
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val summaryJobs = SummaryJobs(appScope, historyRepository, summarizer)
 
     init {
         // The on-device recognition model (~650 MB) from before Soniox; nothing reads it anymore.

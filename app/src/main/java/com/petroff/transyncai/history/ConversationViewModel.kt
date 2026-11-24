@@ -5,9 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.petroff.transyncai.config.ConfigRepository
 import com.petroff.transyncai.session.ViewMode
 import com.petroff.transyncai.summary.ConversationSummary
-import com.petroff.transyncai.summary.Summarizer
 import com.petroff.transyncai.summary.SummaryException
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,7 +29,7 @@ data class ConversationUiState(
 class ConversationViewModel(
     private val recordId: String,
     private val historyRepository: HistoryRepository,
-    private val summarizer: Summarizer,
+    private val summaryJobs: SummaryJobs,
     private val configRepository: ConfigRepository,
     private val summarizeOnOpen: Boolean,
 ) : ViewModel() {
@@ -47,7 +46,12 @@ class ConversationViewModel(
                     view = if (record?.summary != null) ConversationView.SUMMARY else ConversationView.ORIGINAL,
                 )
             }
-            if (summarizeOnOpen) onSummaryClick()
+            // A summary started on an earlier visit of this screen may still be on its way.
+            val running = summaryJobs.inProgress(recordId)
+            when {
+                running != null && record != null -> awaitSummary(record, running)
+                summarizeOnOpen -> onSummaryClick()
+            }
         }
     }
 
@@ -63,11 +67,13 @@ class ConversationViewModel(
             showError(MISSING_KEY_MESSAGE)
             return
         }
+        awaitSummary(record, summaryJobs.summarize(record))
+    }
+
+    private fun awaitSummary(record: ConversationRecord, job: Deferred<Result<ConversationSummary>>) {
         _uiState.update { it.copy(isSummarizing = true) }
         viewModelScope.launch {
-            val result = summarizeWithRetries(record)
-            result.onSuccess { summary ->
-                historyRepository.setSummary(record.id, summary.title, summary.summary)
+            job.await().onSuccess { summary ->
                 _uiState.update {
                     it.copy(
                         record = record.copy(title = summary.title, summary = summary.summary),
@@ -94,20 +100,6 @@ class ConversationViewModel(
         _uiState.update { it.copy(errorMessage = null) }
     }
 
-    private suspend fun summarizeWithRetries(record: ConversationRecord): Result<ConversationSummary> {
-        var last: Result<ConversationSummary> = Result.failure(IllegalStateException("not attempted"))
-        repeat(SUMMARY_ATTEMPTS) { attempt ->
-            if (attempt > 0) delay(RETRY_DELAY_MS)
-            last = summarizer.summarize(record.sourceText, record.translatedText, record.targetLanguageName)
-            val kind = (last.exceptionOrNull() as? SummaryException)?.kind
-            // Success, or a failure another attempt can't fix (no money, bad key).
-            if (last.isSuccess || kind == SummaryException.Kind.OUT_OF_CREDIT || kind == SummaryException.Kind.INVALID_KEY) {
-                return last
-            }
-        }
-        return last
-    }
-
     private fun showError(message: String) {
         _uiState.update { it.copy(errorMessage = message, closeOnErrorDismiss = summarizeOnOpen) }
     }
@@ -119,9 +111,6 @@ class ConversationViewModel(
     }
 
     companion object {
-        const val SUMMARY_ATTEMPTS = 3
-        // Pause before each retry, so an overloaded or rate-limited Claude gets a moment.
-        const val RETRY_DELAY_MS = 1_000L
         private const val MISSING_KEY_MESSAGE = "Set your Anthropic API key in Settings to make summaries."
     }
 }
