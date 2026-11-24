@@ -283,11 +283,11 @@ class MainScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("Summary").assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("Summary").assertIsNotEnabled()
         state = SessionUiState(isListening = true, lastRecordId = "r1")
-        composeRule.onNodeWithText("Summary").assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("Summary").assertIsNotEnabled()
         state = SessionUiState(lastRecordId = "r1")
-        composeRule.onNodeWithText("Summary").assertIsEnabled()
+        composeRule.onNodeWithContentDescription("Summary").assertIsEnabled()
     }
 
     @Test
@@ -308,11 +308,34 @@ class MainScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("History").performClick()
-        composeRule.onNodeWithText("Summary").performClick()
+        composeRule.onNodeWithContentDescription("History").performClick()
+        composeRule.onNodeWithContentDescription("Summary").performClick()
 
         assertEquals(1, history)
         assertEquals(1, summary)
+    }
+
+    @Test
+    fun historyAndSummaryAreTopBarIconsNextToContextAndSettings() {
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(lastRecordId = "r1"),
+                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+            )
+        }
+
+        // Icons only — no text buttons left in the content area.
+        composeRule.onNodeWithText("History").assertDoesNotExist()
+        composeRule.onNodeWithText("Summary").assertDoesNotExist()
+        composeRule.onNodeWithTag("historySummaryDivider").assertExists()
+        val history = composeRule.onNodeWithContentDescription("History").fetchSemanticsNode().boundsInRoot
+        val settings = composeRule.onNodeWithContentDescription("Settings").fetchSemanticsNode().boundsInRoot
+        assertEquals(settings.top, history.top)
     }
 }
 

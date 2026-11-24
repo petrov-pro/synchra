@@ -2,9 +2,9 @@ package com.petroff.transyncai.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -12,7 +12,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -21,15 +20,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.SpeakerNotes
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Summarize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.petroff.transyncai.config.LanguagePair
 import com.petroff.transyncai.session.SessionUiState
@@ -70,6 +73,20 @@ fun MainScreen(
             TopAppBar(
                 title = { Text("TransyncAI") },
                 actions = {
+                    // Saved conversations: a block of its own, set apart from the session controls.
+                    IconButton(onClick = onOpenHistory) {
+                        Icon(Icons.Filled.History, contentDescription = "History")
+                    }
+                    // Summarizes the conversation the last Stop saved; nothing to summarize mid-session.
+                    IconButton(onClick = onSummary, enabled = !uiState.isListening && uiState.lastRecordId != null) {
+                        Icon(Icons.Filled.Summarize, contentDescription = "Summary")
+                    }
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .padding(horizontal = 4.dp)
+                            .testTag("historySummaryDivider"),
+                    )
                     // Hidden when there's no translation panel to provide context for,
                     // disabled while listening (same rule as the view-mode switch below:
                     // context only takes effect at the start of a session).
@@ -136,20 +153,6 @@ fun MainScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(if (uiState.isListening) "Stop" else "Start")
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onOpenHistory, modifier = Modifier.weight(1f)) {
-                    Text("History")
-                }
-                // Summarizes the conversation the last Stop saved; nothing to summarize mid-session.
-                OutlinedButton(
-                    onClick = onSummary,
-                    enabled = !uiState.isListening && uiState.lastRecordId != null,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Summary")
-                }
             }
 
             uiState.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
