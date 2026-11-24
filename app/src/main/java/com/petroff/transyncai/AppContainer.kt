@@ -8,6 +8,7 @@ import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.EncryptedPrefsSettingsStore
 import com.petroff.transyncai.history.HistoryRepository
+import com.petroff.transyncai.history.MIGRATION_1_2
 import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
 import com.petroff.transyncai.soniox.SonioxSpeechTranslator
@@ -24,7 +25,7 @@ class AppContainer(private val context: Context) {
         context,
         TransyncDatabase::class.java,
         "transyncai.db",
-    ).build()
+    ).addMigrations(MIGRATION_1_2).build()
 
     val historyRepository: HistoryRepository = RoomHistoryRepository(database.conversationRecordDao())
 

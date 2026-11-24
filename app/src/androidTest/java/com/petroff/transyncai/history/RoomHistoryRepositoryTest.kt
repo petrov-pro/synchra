@@ -58,6 +58,7 @@ class RoomHistoryRepositoryTest {
         assertEquals("Russian", loaded.targetLanguageName)
         assertEquals("hello world", loaded.sourceText)
         assertEquals("привет мир", loaded.translatedText)
+        assertEquals(null, loaded.summary)
     }
 
     @Test
@@ -80,11 +81,14 @@ class RoomHistoryRepositoryTest {
     }
 
     @Test
-    fun setTitleUpdatesTheStoredTitle() = runBlocking {
+    fun setSummaryIsReturnedByGetRecordAndGetRecords() = runBlocking {
         repository.addRecord(record(id = "1", title = null))
 
-        repository.setTitle("1", "Renamed")
+        repository.setSummary("1", "Встреча", "Обсудили сроки.")
 
-        assertEquals("Renamed", repository.getRecords().single().title)
+        val byId = repository.getRecord("1")!!
+        assertEquals("Встреча", byId.title)
+        assertEquals("Обсудили сроки.", byId.summary)
+        assertEquals(byId, repository.getRecords().single())
     }
 }

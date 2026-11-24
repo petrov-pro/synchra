@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -84,13 +85,20 @@ class ConversationRecordDaoTest {
     }
 
     @Test
-    fun updateTitleChangesOnlyTheTitle() = runBlocking {
+    fun updateSummaryStoresTitleAndSummary() = runBlocking {
         dao.insert(record(id = "1", title = null))
 
-        dao.updateTitle("1", "My conversation")
+        dao.updateSummary("1", "T", "S")
 
-        val updated = dao.getAll().single()
-        assertEquals("My conversation", updated.title)
+        val updated = dao.getById("1")!!
+        assertEquals("T", updated.title)
+        assertEquals("S", updated.summary)
         assertEquals("hello world", updated.sourceText)
+        assertEquals("привет мир", updated.translatedText)
+    }
+
+    @Test
+    fun getByIdReturnsNullForUnknownId() = runBlocking {
+        assertNull(dao.getById("missing"))
     }
 }

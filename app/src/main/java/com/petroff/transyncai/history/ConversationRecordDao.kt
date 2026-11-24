@@ -25,6 +25,9 @@ interface ConversationRecordDao {
     @Query("DELETE FROM conversation_records WHERE id = :id")
     suspend fun deleteById(id: String)
 
-    @Query("UPDATE conversation_records SET title = :title WHERE id = :id")
-    suspend fun updateTitle(id: String, title: String)
+    @Query("SELECT * FROM conversation_records WHERE id = :id")
+    suspend fun getById(id: String): ConversationRecordEntity?
+
+    @Query("UPDATE conversation_records SET title = :title, summary = :summary WHERE id = :id")
+    suspend fun updateSummary(id: String, title: String, summary: String)
 }

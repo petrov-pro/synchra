@@ -10,7 +10,10 @@ class RoomHistoryRepository(private val dao: ConversationRecordDao) : HistoryRep
 
     override suspend fun deleteRecord(id: String) = dao.deleteById(id)
 
-    override suspend fun setTitle(id: String, title: String) = dao.updateTitle(id, title)
+    override suspend fun getRecord(id: String): ConversationRecord? = dao.getById(id)?.toDomain()
+
+    override suspend fun setSummary(id: String, title: String, summary: String) =
+        dao.updateSummary(id, title, summary)
 
     private fun ConversationRecordEntity.toDomain() = ConversationRecord(
         id = id,
@@ -20,6 +23,7 @@ class RoomHistoryRepository(private val dao: ConversationRecordDao) : HistoryRep
         targetLanguageName = targetLanguageName,
         sourceText = sourceText,
         translatedText = translatedText,
+        summary = summary,
     )
 
     private fun ConversationRecord.toEntity() = ConversationRecordEntity(
@@ -30,5 +34,6 @@ class RoomHistoryRepository(private val dao: ConversationRecordDao) : HistoryRep
         targetLanguageName = targetLanguageName,
         sourceText = sourceText,
         translatedText = translatedText,
+        summary = summary,
     )
 }

@@ -1,39 +1,43 @@
 package com.petroff.transyncai.history
 
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class ConversationRecordTest {
 
-    private fun record(title: String?) = ConversationRecord(
+    private val when_ = ZonedDateTime.of(2026, 11, 24, 14, 55, 0, 0, ZoneId.systemDefault())
+    private val dateName = DateTimeFormatter.ofPattern("d MMM, HH:mm").format(when_)
+
+    private fun record(title: String?, summary: String?) = ConversationRecord(
         id = "1",
-        timestamp = 1756675200000L,
+        timestamp = when_.toInstant().toEpochMilli(),
         title = title,
         sourceLanguageName = "English",
         targetLanguageName = "Russian",
         sourceText = "hello",
         translatedText = "привет",
+        summary = summary,
     )
 
     @Test
-    fun `displayTitle returns the explicit title when set`() {
-        val result = record(title = "My conversation").displayTitle()
+    fun `displayTitle is date and time only without a summary`() {
+        val result = record(title = null, summary = null).displayTitle()
 
-        assertEquals("My conversation", result)
+        assertEquals(dateName, result)
+        assertFalse(result.contains("→"))
     }
 
     @Test
-    fun `displayTitle falls back to timestamp and language pair when title is null`() {
-        val result = record(title = null).displayTitle()
-
-        assertTrue(result.contains("· English → Russian"))
+    fun `displayTitle ignores a title without a summary`() {
+        assertEquals(dateName, record(title = "Old", summary = null).displayTitle())
     }
 
     @Test
-    fun `displayTitle falls back to timestamp and language pair when title is blank`() {
-        val result = record(title = "   ").displayTitle()
-
-        assertTrue(result.contains("· English → Russian"))
+    fun `displayTitle is the Claude title once summarized`() {
+        assertEquals("Встреча", record(title = "Встреча", summary = "Обсудили сроки.").displayTitle())
     }
 }

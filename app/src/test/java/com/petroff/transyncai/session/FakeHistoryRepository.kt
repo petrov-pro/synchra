@@ -25,8 +25,10 @@ class FakeHistoryRepository : HistoryRepository {
         records.removeAll { it.id == id }
     }
 
-    override suspend fun setTitle(id: String, title: String) {
+    override suspend fun getRecord(id: String): ConversationRecord? = records.firstOrNull { it.id == id }
+
+    override suspend fun setSummary(id: String, title: String, summary: String) {
         val index = records.indexOfFirst { it.id == id }
-        if (index >= 0) records[index] = records[index].copy(title = title)
+        if (index >= 0) records[index] = records[index].copy(title = title, summary = summary)
     }
 }
