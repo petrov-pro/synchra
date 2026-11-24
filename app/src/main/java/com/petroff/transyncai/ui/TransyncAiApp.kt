@@ -1,5 +1,11 @@
 package com.petroff.transyncai.ui
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -9,6 +15,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -30,6 +38,10 @@ fun TransyncAiApp(container: AppContainer) {
         Surface {
             RequiresRecordAudioPermission {
                 val navController = rememberNavController()
+                val context = LocalContext.current
+                val notificationPermission = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission(),
+                ) { }
                 val sessionViewModel: SessionViewModel = viewModel(
                     factory = SessionViewModelFactory(container)
                 )
@@ -65,7 +77,16 @@ fun TransyncAiApp(container: AppContainer) {
                             currentLanguagePair = config.selectedLanguagePair,
                             currentConversationContext = config.conversationContext,
                             onToggleListening = {
-                                if (uiState.isListening) sessionViewModel.stop() else sessionViewModel.start()
+                                if (uiState.isListening) {
+                                    sessionViewModel.stop()
+                                } else {
+                                    // The recording notification needs this on Android 13+; recording
+                                    // works without it, the notification is just hidden.
+                                    if (needsNotificationPermission(context)) {
+                                        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                    sessionViewModel.start()
+                                }
                             },
                             onViewModeChange = sessionViewModel::setViewMode,
                             onOpenSettings = {
@@ -166,3 +187,9 @@ fun TransyncAiApp(container: AppContainer) {
         }
     }
 }
+
+private fun needsNotificationPermission(context: Context): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+        PackageManager.PERMISSION_GRANTED
+

@@ -11,6 +11,7 @@ import com.petroff.transyncai.history.HistoryRepository
 import com.petroff.transyncai.history.MIGRATION_1_2
 import com.petroff.transyncai.history.SummaryJobs
 import com.petroff.transyncai.session.LiveSession
+import com.petroff.transyncai.session.RecordingService
 import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
 import com.petroff.transyncai.soniox.SonioxSpeechTranslator
@@ -22,6 +23,9 @@ import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 class AppContainer(private val context: Context) {
@@ -55,6 +59,13 @@ class AppContainer(private val context: Context) {
     val liveSession = LiveSession(buildSpeechTranslator(), configRepository, historyRepository, appScope)
 
     init {
+        // A session that is recording needs the foreground service, or Android cuts the
+        // microphone as soon as the app leaves the screen.
+        appScope.launch {
+            liveSession.uiState.map { it.isListening }.distinctUntilChanged().collect { listening ->
+                if (listening) RecordingService.start(context)
+            }
+        }
         // The on-device recognition model (~650 MB) from before Soniox; nothing reads it anymore.
         val legacyModelDir = File(context.filesDir, "model")
         if (legacyModelDir.exists()) thread(name = "LegacyModelCleanup") { legacyModelDir.deleteRecursively() }
