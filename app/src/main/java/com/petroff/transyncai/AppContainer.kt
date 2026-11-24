@@ -49,7 +49,7 @@ class AppContainer(private val context: Context) {
     }
 
     fun buildSpeechTranslator(): SpeechTranslator = SonioxSpeechTranslator(
-        audioSource = MicAudioSource(),
+        audioSourceFactory = { MicAudioSource() },
         httpClient = httpClient,
         apiKeyProvider = { configRepository.getConfig().sonioxApiKey },
     )

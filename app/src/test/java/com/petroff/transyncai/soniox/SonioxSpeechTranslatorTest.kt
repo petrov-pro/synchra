@@ -65,7 +65,7 @@ class SonioxSpeechTranslatorTest {
     }
 
     private fun translator(key: String? = "snx-test") = SonioxSpeechTranslator(
-        audioSource = audio,
+        audioSourceFactory = { audio },
         httpClient = OkHttpClient(),
         url = server.url("/transcribe-websocket").toString(),
         apiKeyProvider = { key },
@@ -153,4 +153,31 @@ class SonioxSpeechTranslatorTest {
         assertNotNull(finished.poll(5, TimeUnit.SECONDS))
         assertEquals(0, server.requestCount)
     }
+
+    @Test
+    fun `closing the previous session's stream does not stop the next session's microphone`() {
+        val secondServer = FakeSonioxServer()
+        server.enqueue(MockResponse().withWebSocketUpgrade(secondServer))
+        val microphones = mutableListOf<FakeAudioSource>()
+        val t = SonioxSpeechTranslator(
+            audioSourceFactory = { FakeAudioSource().also { microphones += it } },
+            httpClient = OkHttpClient(),
+            url = server.url("/transcribe-websocket").toString(),
+            apiKeyProvider = { "snx-test" },
+        )
+        t.startWith(LiveRequest("en", "ru", ""))
+        assertTrue(fakeServer.opened.await(5, TimeUnit.SECONDS))
+        t.stop()
+        t.startWith(LiveRequest("en", "ru", ""))
+        assertTrue(secondServer.opened.await(5, TimeUnit.SECONDS))
+        assertNotNull(secondServer.texts.poll(5, TimeUnit.SECONDS)) // second config sent
+
+        // The first stream never answers "finished": 3 s after stop() the client cancels it,
+        // which fails that stream while the second session is already recording.
+        Thread.sleep(3_500)
+
+        assertEquals(2, microphones.size)
+        assertFalse(microphones[1].stopped)
+    }
 }
+

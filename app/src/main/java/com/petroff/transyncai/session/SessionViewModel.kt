@@ -6,6 +6,7 @@ import com.petroff.transyncai.config.ConfigRepository
 import com.petroff.transyncai.history.ConversationRecord
 import com.petroff.transyncai.history.HistoryRepository
 import com.petroff.transyncai.soniox.LiveRequest
+import com.petroff.transyncai.soniox.LiveTranscript
 import com.petroff.transyncai.soniox.SpeechTranslator
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,10 @@ class SessionViewModel(
 
     private val _uiState = MutableStateFlow(SessionUiState())
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
+
+    // Callbacks of a stopped session can arrive after the next one started; they may only save
+    // their own conversation, never touch the screen of the current session.
+    @Volatile private var currentSession = 0
 
     init {
         refreshCanStart()
@@ -50,6 +55,7 @@ class SessionViewModel(
             return
         }
         val config = configRepository.getConfig()
+        val session = ++currentSession
         _uiState.update {
             it.copy(
                 isListening = true,
@@ -69,13 +75,22 @@ class SessionViewModel(
                 // Conversation context, falling back to the general one from Settings.
                 context = config.conversationContext.ifBlank { config.generalContext },
             ),
-            onUpdate = { live -> _uiState.update { it.copy(sourceText = live.source, translatedText = live.translation) } },
-            onError = { message -> _uiState.update { it.copy(errorMessage = message) } },
-            onFinished = { live ->
-                _uiState.update {
-                    it.copy(isListening = false, sourceText = live.source, translatedText = live.translation)
+            onUpdate = { live ->
+                if (session == currentSession) {
+                    _uiState.update { it.copy(sourceText = live.source, translatedText = live.translation) }
                 }
-                saveHistoryRecordIfNeeded()
+            },
+            onError = { message ->
+                if (session == currentSession) _uiState.update { it.copy(errorMessage = message) }
+            },
+            onFinished = { live ->
+                val isCurrent = session == currentSession
+                if (isCurrent) {
+                    _uiState.update {
+                        it.copy(isListening = false, sourceText = live.source, translatedText = live.translation)
+                    }
+                }
+                saveHistoryRecordIfNeeded(live, isCurrent)
             },
         )
     }
@@ -87,9 +102,8 @@ class SessionViewModel(
         _uiState.update { it.copy(isListening = false) }
     }
 
-    private fun saveHistoryRecordIfNeeded() {
-        val state = _uiState.value
-        if (state.sourceText.isBlank() && state.translatedText.isBlank()) return
+    private fun saveHistoryRecordIfNeeded(live: LiveTranscript, isCurrentSession: Boolean) {
+        if (live.source.isBlank() && live.translation.isBlank()) return
         val pair = configRepository.getConfig().selectedLanguagePair
         val record = ConversationRecord(
             id = UUID.randomUUID().toString(),
@@ -97,12 +111,13 @@ class SessionViewModel(
             title = null,
             sourceLanguageName = pair.sourceName,
             targetLanguageName = pair.targetName,
-            sourceText = state.sourceText,
-            translatedText = state.translatedText,
+            sourceText = live.source,
+            translatedText = live.translation,
         )
         viewModelScope.launch {
             historyRepository.addRecord(record)
-            _uiState.update { it.copy(lastRecordId = record.id) }
+            // Summary target only for the session on screen; an older one is just saved.
+            if (isCurrentSession) _uiState.update { it.copy(lastRecordId = record.id) }
         }
     }
 

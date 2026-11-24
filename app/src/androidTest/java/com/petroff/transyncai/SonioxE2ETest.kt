@@ -94,7 +94,7 @@ class SonioxE2ETest {
         val history = RoomHistoryRepository(database.conversationRecordDao())
         val audio = WavFileAudioSource(InstrumentationRegistry.getInstrumentation().context.assets, "test_wavs/0.wav")
         val translator = SonioxSpeechTranslator(
-            audioSource = audio,
+            audioSourceFactory = { audio },
             httpClient = OkHttpClient(),
             url = server.url("/transcribe-websocket").toString(),
             apiKeyProvider = { configRepository.getConfig().sonioxApiKey },

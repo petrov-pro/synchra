@@ -22,11 +22,15 @@ import org.junit.Before
 import org.junit.Test
 
 class FakeSpeechTranslator : SpeechTranslator {
+    private class Session(
+        val onUpdate: (LiveTranscript) -> Unit,
+        val onError: (String) -> Unit,
+        val onFinished: (LiveTranscript) -> Unit,
+    )
+
     var request: LiveRequest? = null
     var stopped = false
-    private var onUpdate: ((LiveTranscript) -> Unit)? = null
-    private var onError: ((String) -> Unit)? = null
-    private var onFinished: ((LiveTranscript) -> Unit)? = null
+    private val sessions = mutableListOf<Session>()
 
     override fun start(
         request: LiveRequest,
@@ -35,18 +39,20 @@ class FakeSpeechTranslator : SpeechTranslator {
         onFinished: (LiveTranscript) -> Unit,
     ) {
         this.request = request
-        this.onUpdate = onUpdate
-        this.onError = onError
-        this.onFinished = onFinished
+        sessions += Session(onUpdate, onError, onFinished)
     }
 
     override fun stop() {
         stopped = true
     }
 
-    fun emit(source: String, translation: String) = onUpdate!!(LiveTranscript(source, translation))
-    fun fail(message: String) = onError!!(message)
-    fun finish(source: String, translation: String) = onFinished!!(LiveTranscript(source, translation))
+    fun emit(source: String, translation: String) = sessions.last().onUpdate(LiveTranscript(source, translation))
+    fun fail(message: String) = sessions.last().onError(message)
+    fun finish(source: String, translation: String) = finishSession(sessions.lastIndex, source, translation)
+    fun finishSession(index: Int, source: String, translation: String) =
+        sessions[index].onFinished(LiveTranscript(source, translation))
+    fun emitToSession(index: Int, source: String, translation: String) =
+        sessions[index].onUpdate(LiveTranscript(source, translation))
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -190,6 +196,26 @@ class SessionViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertNull(viewModel.uiState.value.lastRecordId)
+    }
+
+    @Test
+    fun `a late finish from the previous session saves its own text and leaves the new session alone`() = runTest(dispatcher) {
+        viewModel.start()
+        speechTranslator.emit("First", "Первый")
+        viewModel.stop()
+        viewModel.start()
+        speechTranslator.emit("Second", "Второй")
+
+        speechTranslator.emitToSession(0, "First talk", "Первый разговор")
+        speechTranslator.finishSession(0, "First talk", "Первый разговор")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isListening)
+        assertEquals("Second", viewModel.uiState.value.sourceText)
+        assertEquals("Второй", viewModel.uiState.value.translatedText)
+        val saved = historyRepository.addedRecords.single()
+        assertEquals("First talk", saved.sourceText)
+        assertEquals("Первый разговор", saved.translatedText)
     }
 }
 

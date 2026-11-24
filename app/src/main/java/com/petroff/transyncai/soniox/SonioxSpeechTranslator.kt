@@ -43,15 +43,28 @@ interface SpeechTranslator {
  * 16 kHz mono PCM16 for as long as the session runs.
  */
 class SonioxSpeechTranslator(
-    private val audioSource: AudioSource,
+    // A fresh microphone per session: a late close of the previous stream must not stop the
+    // microphone the next session is already using.
+    private val audioSourceFactory: () -> AudioSource,
     private val httpClient: OkHttpClient,
     private val url: String = DEFAULT_URL,
     private val apiKeyProvider: () -> String?,
 ) : SpeechTranslator {
 
-    @Volatile private var socket: WebSocket? = null
-    @Volatile private var finishOnce: ((LiveTranscript) -> Unit)? = null
-    @Volatile private var latest = LiveTranscript("", "")
+    /** Everything one start()…finished stream owns; old sessions never touch the current one. */
+    private inner class Session(private val onFinished: (LiveTranscript) -> Unit) {
+        val audio: AudioSource = audioSourceFactory()
+        val transcript = SonioxTranscript()
+        val done = AtomicBoolean(false)
+        @Volatile var latest = LiveTranscript("", "")
+        @Volatile var socket: WebSocket? = null
+
+        fun finish() {
+            if (done.compareAndSet(false, true)) onFinished(latest)
+        }
+    }
+
+    @Volatile private var current: Session? = null
 
     override fun start(
         request: LiveRequest,
@@ -59,42 +72,38 @@ class SonioxSpeechTranslator(
         onError: (String) -> Unit,
         onFinished: (LiveTranscript) -> Unit,
     ) {
-        val done = AtomicBoolean(false)
-        val finish: (LiveTranscript) -> Unit = { if (done.compareAndSet(false, true)) onFinished(it) }
-        finishOnce = finish
-        latest = LiveTranscript("", "")
-
         val apiKey = apiKeyProvider()
         if (apiKey.isNullOrBlank()) {
             onError("Set your Soniox API key in Settings")
-            finish(latest)
+            onFinished(LiveTranscript("", ""))
             return
         }
 
-        val transcript = SonioxTranscript()
+        val session = Session(onFinished)
+        current = session
         val httpRequest = Request.Builder().url(url).header("Authorization", "Bearer $apiKey").build()
-        socket = httpClient.newWebSocket(httpRequest, object : WebSocketListener() {
+        session.socket = httpClient.newWebSocket(httpRequest, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 webSocket.send(configJson(request))
-                audioSource.start { samples -> webSocket.send(toPcm16(samples).toByteString()) }
+                session.audio.start { samples -> webSocket.send(toPcm16(samples).toByteString()) }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                when (val event = transcript.apply(text)) {
+                when (val event = session.transcript.apply(text)) {
                     is SonioxEvent.Update -> {
-                        latest = LiveTranscript(event.source, event.translation)
-                        onUpdate(latest)
+                        session.latest = LiveTranscript(event.source, event.translation)
+                        onUpdate(session.latest)
                     }
                     is SonioxEvent.Finished -> {
-                        latest = LiveTranscript(event.source, event.translation)
-                        onUpdate(latest)
-                        finish(latest)
+                        session.latest = LiveTranscript(event.source, event.translation)
+                        onUpdate(session.latest)
+                        session.finish()
                     }
                     is SonioxEvent.Error -> {
                         Log.e(TAG, event.message)
-                        audioSource.stop()
+                        session.audio.stop()
                         onError(event.message)
-                        finish(latest)
+                        session.finish()
                         webSocket.close(NORMAL_CLOSURE, null)
                     }
                 }
@@ -102,26 +111,26 @@ class SonioxSpeechTranslator(
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "stream failed", t)
-                audioSource.stop()
-                if (!done.get()) onError("Soniox connection failed: ${t.message}")
-                finish(latest)
+                session.audio.stop()
+                if (!session.done.get()) onError("Soniox connection failed: ${t.message}")
+                session.finish()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                finish(latest)
+                session.finish()
             }
         })
     }
 
     override fun stop() {
-        audioSource.stop()
-        val ws = socket ?: return
+        val session = current ?: return
+        session.audio.stop()
+        val ws = session.socket ?: return
         ws.send("") // empty text frame = end of audio; the server answers with finished:true
-        val finish = finishOnce
         // Don't let a lost "finished" response hold the session (and its history save) forever.
         thread(isDaemon = true, name = "SonioxStopTimeout") {
             Thread.sleep(STOP_TIMEOUT_MS)
-            finish?.invoke(latest)
+            session.finish()
             ws.cancel()
         }
     }
