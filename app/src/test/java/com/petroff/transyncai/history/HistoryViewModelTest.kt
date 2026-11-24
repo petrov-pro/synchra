@@ -2,6 +2,7 @@ package com.petroff.transyncai.history
 
 import com.petroff.transyncai.session.FakeHistoryRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -88,4 +89,23 @@ class HistoryViewModelTest {
 
         assertEquals(listOf("2"), vm.records.value.map { it.id })
     }
+
+    @Test
+    fun `typing fast shows results for the last query, not a slower earlier one`() = runTest(dispatcher) {
+        // Shorter queries match more and take longer, like a real database.
+        val slowForShortQueries = object : HistoryRepository by history {
+            override suspend fun search(query: String): List<ConversationRecord> {
+                delay(1_000L / query.length)
+                return history.search(query)
+            }
+        }
+        val vm = HistoryViewModel(slowForShortQueries)
+
+        vm.setSearchQuery("a")
+        vm.setSearchQuery("about the w")
+        advanceUntilIdle()
+
+        assertEquals(listOf("2"), vm.records.value.map { it.id })
+    }
 }
+
