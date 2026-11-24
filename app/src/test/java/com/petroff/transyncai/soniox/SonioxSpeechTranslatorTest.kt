@@ -224,9 +224,9 @@ class SonioxSpeechTranslatorTest {
     }
 
     @Test
-    fun `a minute of silence ends the session by itself`() {
+    fun `five minutes of silence end the session by itself`() {
         val autoStopped = CountDownLatch(1)
-        val audio = ScriptedAudioSource(silentChunks(61))
+        val audio = ScriptedAudioSource(silentChunks(301))
         translatorWith(audio, onAutoStopped = { autoStopped.countDown() })
 
         assertTrue(autoStopped.await(5, TimeUnit.SECONDS))

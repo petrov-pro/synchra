@@ -86,7 +86,7 @@ class SessionViewModel(
             },
             onAutoStopped = {
                 if (session == currentSession) {
-                    _uiState.update { it.copy(statusMessage = "Stopped after a minute of silence.") }
+                    _uiState.update { it.copy(statusMessage = "Stopped after 5 minutes of silence.") }
                 }
             },
             onFinished = { live ->

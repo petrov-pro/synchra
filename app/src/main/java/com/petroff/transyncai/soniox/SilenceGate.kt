@@ -17,7 +17,7 @@ class SilenceGate(
     hangoverMs: Long = 1_500,
     preRollMs: Long = 500,
     keepaliveMs: Long = 10_000,
-    autoStopMs: Long = 60_000,
+    autoStopMs: Long = 300_000,
 ) {
     data class Decision(
         /** Chunks to send now, oldest first (buffered lead-in + this chunk). */

@@ -59,10 +59,10 @@ class SilenceGateTest {
     }
 
     @Test
-    fun `one minute of silence asks to stop`() {
+    fun `five minutes of silence ask to stop`() {
         feed(2.0) { speech }
 
-        val silent = feed(60.0) { silence }
+        val silent = feed(300.0) { silence }
 
         assertFalse(silent.dropLast(1).any { it.autoStop })
         assertTrue(silent.last().autoStop)

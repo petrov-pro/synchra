@@ -226,7 +226,7 @@ class SessionViewModelTest {
         viewModel.start()
 
         speechTranslator.autoStop()
-        assertEquals("Stopped after a minute of silence.", viewModel.uiState.value.statusMessage)
+        assertEquals("Stopped after 5 minutes of silence.", viewModel.uiState.value.statusMessage)
 
         viewModel.start()
         assertNull(viewModel.uiState.value.statusMessage)
