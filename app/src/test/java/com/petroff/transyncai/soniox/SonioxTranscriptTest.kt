@@ -49,4 +49,26 @@ class SonioxTranscriptTest {
 
         assertEquals(SonioxEvent.Finished(source = "Bye", translation = ""), event)
     }
+
+    @Test
+    fun `empty balance becomes the top-up message`() {
+        val event = transcript.apply("""{"tokens":[],"error_code":402,"error_message":"Organization balance exhausted."}""")
+
+        assertEquals(SonioxEvent.Error("Your Soniox balance is empty. Top it up at console.soniox.com."), event)
+    }
+
+    @Test
+    fun `rejected key becomes the settings message`() {
+        val event = transcript.apply("""{"tokens":[],"error_code":401,"error_message":"Incorrect API key provided."}""")
+
+        assertEquals(SonioxEvent.Error("Your Soniox API key is invalid. Check it in Settings."), event)
+    }
+
+    @Test
+    fun `other errors keep the API text`() {
+        val event = transcript.apply("""{"tokens":[],"error_code":500,"error_message":"Internal error."}""")
+
+        assertTrue((event as SonioxEvent.Error).message.contains("Soniox 500"))
+    }
 }
+

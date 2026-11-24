@@ -141,7 +141,7 @@ class SonioxSpeechTranslatorTest {
 
         fakeServer.socket!!.send("""{"tokens":[],"error_code":402,"error_message":"Organization balance exhausted."}""")
 
-        assertTrue(errors.poll(5, TimeUnit.SECONDS)!!.contains("balance exhausted"))
+        assertEquals("Your Soniox balance is empty. Top it up at console.soniox.com.", errors.poll(5, TimeUnit.SECONDS))
         assertNotNull(finished.poll(5, TimeUnit.SECONDS))
     }
 

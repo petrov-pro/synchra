@@ -26,8 +26,13 @@ class SonioxTranscript {
     fun apply(message: String): SonioxEvent {
         val root = Json.parseToJsonElement(message).jsonObject
         root["error_code"]?.let { code ->
-            val text = root.string("error_message") ?: "unknown error"
-            return SonioxEvent.Error("Soniox ${code.jsonPrimitive.content}: $text")
+            return SonioxEvent.Error(
+                when (code.jsonPrimitive.content) {
+                    "402" -> "Your Soniox balance is empty. Top it up at console.soniox.com."
+                    "401" -> "Your Soniox API key is invalid. Check it in Settings."
+                    else -> "Soniox ${code.jsonPrimitive.content}: ${root.string("error_message") ?: "unknown error"}"
+                }
+            )
         }
 
         val pendingSource = StringBuilder()
