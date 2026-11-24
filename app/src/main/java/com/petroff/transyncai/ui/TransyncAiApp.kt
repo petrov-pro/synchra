@@ -70,7 +70,7 @@ fun TransyncAiApp(container: AppContainer) {
                             onViewModeChange = sessionViewModel::setViewMode,
                             onOpenSettings = {
                                 focusApiKeyOnSettingsOpen = false
-                                navController.navigate("settings")
+                                navController.navigateOnce("settings")
                             },
                             onSaveConversationContext = {
                                 container.configRepository.setConversationContext(it)
@@ -79,14 +79,14 @@ fun TransyncAiApp(container: AppContainer) {
                                 // Context dialog in the same session would show stale text.
                                 config = container.configRepository.getConfig()
                             },
-                            onOpenHistory = { navController.navigate("history") },
+                            onOpenHistory = { navController.navigateOnce("history") },
                             onSummary = {
-                                uiState.lastRecordId?.let { navController.navigate("conversation/$it?summarize=true") }
+                                uiState.lastRecordId?.let { navController.navigateOnce("conversation/$it?summarize=true") }
                             },
                             hasApiKey = !config.sonioxApiKey.isNullOrBlank(),
                             onApiKeyRequired = {
                                 focusApiKeyOnSettingsOpen = true
-                                navController.navigate("settings")
+                                navController.navigateOnce("settings")
                             },
                         )
                     }
@@ -97,9 +97,9 @@ fun TransyncAiApp(container: AppContainer) {
                             records = records,
                             searchQuery = query,
                             onSearchQueryChange = historyViewModel::setSearchQuery,
-                            onRecordClick = { navController.navigate("conversation/$it") },
+                            onRecordClick = { navController.navigateOnce("conversation/$it") },
                             onDeleteRecord = historyViewModel::delete,
-                            onBack = { navController.popBackStack() },
+                            onBack = { navController.popOnce() },
                         )
                     }
                     composable(
@@ -131,7 +131,7 @@ fun TransyncAiApp(container: AppContainer) {
                         val state by conversationViewModel.uiState.collectAsState()
                         ConversationScreen(
                             state = state,
-                            onBack = { navController.popBackStack() },
+                            onBack = { navController.popOnce() },
                             onSummaryClick = conversationViewModel::onSummaryClick,
                             onOriginalClick = conversationViewModel::onOriginalClick,
                             onViewModeChange = conversationViewModel::setViewMode,
@@ -139,7 +139,7 @@ fun TransyncAiApp(container: AppContainer) {
                                 val close = state.closeOnErrorDismiss
                                 conversationViewModel.dismissError()
                                 // Summary from the main screen failed: go back where it was pressed.
-                                if (close) navController.popBackStack()
+                                if (close) navController.popOnce()
                             },
                         )
                     }
@@ -154,7 +154,7 @@ fun TransyncAiApp(container: AppContainer) {
                             onSaveSonioxApiKey = { container.configRepository.setSonioxApiKey(it) },
                             onSaveApiKey = { container.configRepository.setApiKey(it) },
                             onSaveGeneralContext = { container.configRepository.setGeneralContext(it) },
-                            onBack = { navController.popBackStack() },
+                            onBack = { navController.popOnce() },
                             autoFocusApiKey = focusApiKeyOnSettingsOpen,
                         )
                     }
