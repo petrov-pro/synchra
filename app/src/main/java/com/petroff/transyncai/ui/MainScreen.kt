@@ -34,7 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.petroff.transyncai.config.LanguagePair
+import com.petroff.transyncai.config.Language
 import com.petroff.transyncai.config.MAX_CONVERSATION_CONTEXT_CHARS
 import com.petroff.transyncai.session.SessionUiState
 import com.petroff.transyncai.session.ViewMode
@@ -43,7 +43,8 @@ import com.petroff.transyncai.session.ViewMode
 @Composable
 fun MainScreen(
     uiState: SessionUiState,
-    currentLanguagePair: LanguagePair,
+    sourceLanguage: Language,
+    targetLanguage: Language,
     currentConversationContext: String,
     onToggleListening: () -> Unit,
     onViewModeChange: (ViewMode) -> Unit,
@@ -55,8 +56,27 @@ fun MainScreen(
     onApiKeyRequired: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
     onSummary: () -> Unit = {},
+    recentLanguages: List<Language> = emptyList(),
+    onSourceLanguageChange: (Language) -> Unit = {},
+    onTargetLanguageChange: (Language) -> Unit = {},
+    onSwapLanguages: () -> Unit = {},
 ) {
     var showContextDialog by remember { mutableStateOf(false) }
+    // Which side's picker is open: true = source, false = target, null = none.
+    var pickingSource by remember { mutableStateOf<Boolean?>(null) }
+
+    pickingSource?.let { isSource ->
+        LanguagePickerSheet(
+            title = if (isSource) "Speech language" else "Translate into",
+            selected = if (isSource) sourceLanguage else targetLanguage,
+            recent = recentLanguages,
+            onPick = {
+                if (isSource) onSourceLanguageChange(it) else onTargetLanguageChange(it)
+                pickingSource = null
+            },
+            onDismiss = { pickingSource = null },
+        )
+    }
 
     if (showContextDialog) {
         ContextDialog(
@@ -108,11 +128,14 @@ fun MainScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Read-only here — editable in Settings (language switching mid-session isn't a
-            // common flow, and it's disabled while listening anyway; see below).
-            Text(
-                "${currentLanguagePair.sourceName} → ${currentLanguagePair.targetName}",
-                style = MaterialTheme.typography.labelLarge,
+            // Languages are fixed when a session starts, so they can't change while listening.
+            LanguageBar(
+                source = sourceLanguage,
+                target = targetLanguage,
+                enabled = !uiState.isListening,
+                onPickSource = { pickingSource = true },
+                onPickTarget = { pickingSource = false },
+                onSwap = onSwapLanguages,
             )
 
             // Disabled while listening: SessionViewModel's translate-gate (Task 8) checks

@@ -17,7 +17,6 @@ class ConfigRepositoryTest {
         repo = DefaultConfigRepository(
             store = store,
             defaultApiBaseUrl = "https://api.anthropic.com",
-            defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
         )
     }
 
@@ -26,7 +25,8 @@ class ConfigRepositoryTest {
         val config = repo.getConfig()
         assertEquals("https://api.anthropic.com", config.apiBaseUrl)
         assertNull(config.apiKey)
-        assertEquals(DEFAULT_LANGUAGE_PAIRS, config.languagePairs)
+        assertEquals("en", config.sourceLanguage.code)
+        assertEquals("ru", config.targetLanguage.code)
         assertEquals("", config.generalContext)
         assertEquals("", config.conversationContext)
     }
@@ -50,22 +50,62 @@ class ConfigRepositoryTest {
     }
 
     @Test
-    fun `setLanguagePairs overrides the default list`() {
-        val custom = listOf(LanguagePair("en", "English", "es", "Spanish"))
-        repo.setLanguagePairs(custom)
-        assertEquals(custom, repo.getConfig().languagePairs)
+    fun `the chosen languages are saved`() {
+        repo.setSourceLanguage("es")
+        repo.setTargetLanguage("de")
+
+        val config = repo.getConfig()
+        assertEquals("es", config.sourceLanguage.code)
+        assertEquals("de", config.targetLanguage.code)
+        assertEquals(LanguagePair("es", "Spanish", "de", "German"), config.selectedLanguagePair)
     }
 
     @Test
-    fun `setSelectedLanguagePairIndex is reflected in selectedLanguagePair`() {
-        repo.setLanguagePairs(
-            listOf(
-                LanguagePair("en", "English", "ru", "Russian"),
-                LanguagePair("en", "English", "es", "Spanish"),
-            )
-        )
-        repo.setSelectedLanguagePairIndex(1)
-        assertEquals("es", repo.getConfig().selectedLanguagePair.targetCode)
+    fun `swap exchanges the two languages`() {
+        repo.swapLanguages()
+
+        assertEquals("ru", repo.getConfig().sourceLanguage.code)
+        assertEquals("en", repo.getConfig().targetLanguage.code)
+    }
+
+    @Test
+    fun `picking the other side's language swaps instead of making both the same`() {
+        repo.setTargetLanguage("en")
+
+        assertEquals("ru", repo.getConfig().sourceLanguage.code)
+        assertEquals("en", repo.getConfig().targetLanguage.code)
+
+        repo.setSourceLanguage("en")
+
+        assertEquals("en", repo.getConfig().sourceLanguage.code)
+        assertEquals("ru", repo.getConfig().targetLanguage.code)
+    }
+
+    @Test
+    fun `an unknown stored language falls back to English to Russian`() {
+        store.putString("source_language", "xx")
+        store.putString("target_language", "yy")
+
+        assertEquals("en", repo.getConfig().sourceLanguage.code)
+        assertEquals("ru", repo.getConfig().targetLanguage.code)
+    }
+
+    @Test
+    fun `recent languages start with the defaults and put the latest pick first`() {
+        assertEquals(listOf("en", "ru"), repo.getConfig().recentLanguages.map { it.code })
+
+        repo.setTargetLanguage("de")
+        repo.setSourceLanguage("es")
+        repo.setTargetLanguage("ru")
+
+        assertEquals(listOf("ru", "es", "de", "en"), repo.getConfig().recentLanguages.map { it.code })
+    }
+
+    @Test
+    fun `at most five recent languages are kept`() {
+        listOf("de", "fr", "it", "pl", "uk", "ja").forEach { repo.setTargetLanguage(it) }
+
+        assertEquals(listOf("ja", "uk", "pl", "it", "fr"), repo.getConfig().recentLanguages.map { it.code })
     }
 
     @Test

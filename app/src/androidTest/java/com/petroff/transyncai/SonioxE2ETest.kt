@@ -4,7 +4,6 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.petroff.transyncai.asr.WavFileAudioSource
-import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.FakeSettingsStore
 import com.petroff.transyncai.history.RoomHistoryRepository
@@ -92,7 +91,6 @@ class SonioxE2ETest {
         val configRepository = DefaultConfigRepository(
             store = FakeSettingsStore(),
             defaultApiBaseUrl = "https://api.anthropic.com",
-            defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
         )
         configRepository.setSonioxApiKey("snx-e2e")
         val history = RoomHistoryRepository(database.conversationRecordDao())

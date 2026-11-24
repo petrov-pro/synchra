@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.Room
 import com.petroff.transyncai.asr.MicAudioSource
 import com.petroff.transyncai.config.ConfigRepository
-import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.EncryptedPrefsSettingsStore
 import com.petroff.transyncai.history.HistoryRepository
@@ -44,7 +43,6 @@ class AppContainer(private val context: Context) {
     val configRepository: ConfigRepository = DefaultConfigRepository(
         store = EncryptedPrefsSettingsStore(context),
         defaultApiBaseUrl = BuildConfig.DEFAULT_API_BASE_URL,
-        defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
     )
 
     val summarizer: Summarizer = ClaudeSummarizer(

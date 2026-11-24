@@ -1,10 +1,8 @@
 package com.petroff.transyncai.session
 
 import com.petroff.transyncai.config.ConfigRepository
-import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.FakeSettingsStore
-import com.petroff.transyncai.config.LanguagePair
 import com.petroff.transyncai.soniox.LiveRequest
 import com.petroff.transyncai.soniox.LiveTranscript
 import com.petroff.transyncai.soniox.SpeechTranslator
@@ -82,7 +80,6 @@ class SessionViewModelTest {
         configRepository = DefaultConfigRepository(
             store = FakeSettingsStore(),
             defaultApiBaseUrl = "https://api.anthropic.com",
-            defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
         )
         configRepository.setSonioxApiKey("snx-test")
         historyRepository = FakeHistoryRepository()
@@ -103,6 +100,17 @@ class SessionViewModelTest {
 
         assertEquals(LiveRequest(sourceLang = "en", targetLang = "ru", context = "Cardiology lecture"), speechTranslator.request)
         assertTrue(viewModel.uiState.value.isListening)
+    }
+
+    @Test
+    fun `start uses the languages picked on the main screen`() {
+        configRepository.setSourceLanguage("hi")
+        configRepository.setTargetLanguage("uk")
+
+        viewModel.start()
+
+        assertEquals("hi", speechTranslator.request!!.sourceLang)
+        assertEquals("uk", speechTranslator.request!!.targetLang)
     }
 
     @Test
@@ -292,14 +300,8 @@ class SessionViewModelTest {
 
     @Test
     fun `the conversation keeps the languages it was recorded in`() = runTest(dispatcher) {
-        configRepository.setLanguagePairs(
-            listOf(
-                LanguagePair("en", "English", "ru", "Russian"),
-                LanguagePair("en", "English", "de", "German"),
-            )
-        )
         viewModel.start()
-        configRepository.setSelectedLanguagePairIndex(1) // changed in Settings mid-recording
+        configRepository.setTargetLanguage("de") // changed mid-recording
 
         speechTranslator.finish("Hi", "Привет")
         dispatcher.scheduler.advanceUntilIdle()

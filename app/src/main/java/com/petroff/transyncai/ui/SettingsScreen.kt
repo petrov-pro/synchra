@@ -10,16 +10,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,7 +36,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.petroff.transyncai.config.LanguagePair
 import com.petroff.transyncai.config.MAX_GENERAL_CONTEXT_CHARS
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,9 +44,6 @@ fun SettingsScreen(
     currentSonioxApiKey: String?,
     currentApiKey: String?,
     currentGeneralContext: String,
-    languagePairs: List<LanguagePair>,
-    selectedLanguagePairIndex: Int,
-    onSelectLanguagePair: (Int) -> Unit,
     onSaveSonioxApiKey: (String) -> Unit,
     onSaveApiKey: (String) -> Unit,
     onSaveGeneralContext: (String) -> Unit,
@@ -107,15 +98,6 @@ fun SettingsScreen(
                     apiKeyFocusRequester.requestFocus()
                     keyboardController?.show()
                 }
-            }
-
-            FieldRow(
-                field = "Languages",
-                helpText = "Choose the language you'll speak and the language it should be " +
-                    "translated into.",
-                onShowHelp = { helpDialog = it },
-            ) {
-                LanguagePairDropdown(languagePairs, selectedLanguagePairIndex, onSelectLanguagePair)
             }
 
             FieldRow(
@@ -203,41 +185,6 @@ private fun FieldRow(
         }
         IconButton(onClick = { onShowHelp(HelpDialogContent(field, helpText)) }) {
             Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Help: $field")
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LanguagePairDropdown(
-    languagePairs: List<LanguagePair>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selected = languagePairs.getOrNull(selectedIndex) ?: languagePairs.first()
-
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-        TextField(
-            readOnly = true,
-            value = "${selected.sourceName} → ${selected.targetName}",
-            onValueChange = {},
-            label = { Text("Languages") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            languagePairs.forEachIndexed { index, pair ->
-                DropdownMenuItem(
-                    text = { Text("${pair.sourceName} → ${pair.targetName}") },
-                    onClick = {
-                        onSelect(index)
-                        expanded = false
-                    },
-                )
-            }
         }
     }
 }

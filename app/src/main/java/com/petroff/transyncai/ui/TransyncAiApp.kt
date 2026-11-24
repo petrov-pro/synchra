@@ -74,7 +74,21 @@ fun TransyncAiApp(container: AppContainer) {
                     composable("main") {
                         MainScreen(
                             uiState = uiState,
-                            currentLanguagePair = config.selectedLanguagePair,
+                            sourceLanguage = config.sourceLanguage,
+                            targetLanguage = config.targetLanguage,
+                            recentLanguages = config.recentLanguages,
+                            onSourceLanguageChange = {
+                                container.configRepository.setSourceLanguage(it.code)
+                                config = container.configRepository.getConfig()
+                            },
+                            onTargetLanguageChange = {
+                                container.configRepository.setTargetLanguage(it.code)
+                                config = container.configRepository.getConfig()
+                            },
+                            onSwapLanguages = {
+                                container.configRepository.swapLanguages()
+                                config = container.configRepository.getConfig()
+                            },
                             currentConversationContext = config.conversationContext,
                             onToggleListening = {
                                 if (uiState.isListening) {
@@ -172,9 +186,6 @@ fun TransyncAiApp(container: AppContainer) {
                             currentSonioxApiKey = config.sonioxApiKey,
                             currentApiKey = config.apiKey,
                             currentGeneralContext = config.generalContext,
-                            languagePairs = config.languagePairs,
-                            selectedLanguagePairIndex = config.selectedLanguagePairIndex,
-                            onSelectLanguagePair = { container.configRepository.setSelectedLanguagePairIndex(it) },
                             onSaveSonioxApiKey = { container.configRepository.setSonioxApiKey(it) },
                             onSaveApiKey = { container.configRepository.setApiKey(it) },
                             onSaveGeneralContext = { container.configRepository.setGeneralContext(it) },

@@ -9,8 +9,10 @@ data class AppConfig(
     // Anthropic API (Claude), kept for conversation summaries.
     val apiBaseUrl: String,
     val apiKey: String?,
-    val languagePairs: List<LanguagePair>,
-    val selectedLanguagePairIndex: Int,
+    val sourceLanguage: Language,
+    val targetLanguage: Language,
+    // Most recently picked first, for the top of the language picker.
+    val recentLanguages: List<Language> = listOf(sourceLanguage, targetLanguage),
     // Standing background the customer sets once in Settings (e.g. domain/terminology hints)
     // and general-purpose enough to apply to any conversation.
     val generalContext: String = "",
@@ -21,5 +23,5 @@ data class AppConfig(
     val sonioxApiKey: String? = null,
 ) {
     val selectedLanguagePair: LanguagePair
-        get() = languagePairs[selectedLanguagePairIndex.coerceIn(languagePairs.indices)]
+        get() = LanguagePair(sourceLanguage.code, sourceLanguage.name, targetLanguage.code, targetLanguage.name)
 }

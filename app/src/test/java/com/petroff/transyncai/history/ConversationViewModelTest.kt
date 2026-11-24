@@ -2,7 +2,6 @@ package com.petroff.transyncai.history
 
 import androidx.lifecycle.viewModelScope
 import com.petroff.transyncai.config.ConfigRepository
-import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.FakeSettingsStore
 import com.petroff.transyncai.session.FakeHistoryRepository
@@ -64,7 +63,7 @@ class ConversationViewModelTest {
     fun setUp() = runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         history = FakeHistoryRepository()
-        config = DefaultConfigRepository(FakeSettingsStore(), "https://api.anthropic.com", DEFAULT_LANGUAGE_PAIRS)
+        config = DefaultConfigRepository(FakeSettingsStore(), "https://api.anthropic.com")
         config.setApiKey("sk-ant")
     }
 

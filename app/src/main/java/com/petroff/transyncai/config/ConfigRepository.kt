@@ -3,8 +3,11 @@ package com.petroff.transyncai.config
 interface ConfigRepository {
     fun getConfig(): AppConfig
     fun setApiKey(key: String)
-    fun setLanguagePairs(pairs: List<LanguagePair>)
-    fun setSelectedLanguagePairIndex(index: Int)
+    /** Picking the target's language swaps the two, so both sides never match. */
+    fun setSourceLanguage(code: String)
+    /** Picking the source's language swaps the two, so both sides never match. */
+    fun setTargetLanguage(code: String)
+    fun swapLanguages()
     fun setGeneralContext(context: String)
     fun setConversationContext(context: String)
     fun setSonioxApiKey(key: String)
@@ -13,14 +16,14 @@ interface ConfigRepository {
 class DefaultConfigRepository(
     private val store: SettingsStore,
     private val defaultApiBaseUrl: String,
-    private val defaultLanguagePairs: List<LanguagePair>,
 ) : ConfigRepository {
 
     override fun getConfig(): AppConfig = AppConfig(
         apiBaseUrl = store.getString(KEY_API_BASE_URL, defaultApiBaseUrl),
         apiKey = store.getString(KEY_API_KEY, "").ifBlank { null },
-        languagePairs = readLanguagePairs(),
-        selectedLanguagePairIndex = store.getInt(KEY_SELECTED_PAIR, 0),
+        sourceLanguage = source(),
+        targetLanguage = target(),
+        recentLanguages = recentCodes().mapNotNull(::languageForCode),
         // Capped on read too: values saved before the limits existed may be longer.
         generalContext = store.getString(KEY_GENERAL_CONTEXT, "").take(MAX_GENERAL_CONTEXT_CHARS),
         conversationContext = store.getString(KEY_CONVERSATION_CONTEXT, "").take(MAX_CONVERSATION_CONTEXT_CHARS),
@@ -33,14 +36,23 @@ class DefaultConfigRepository(
         store.putString(KEY_LEGACY_KIMI_API_KEY, "")
     }
 
-    override fun setLanguagePairs(pairs: List<LanguagePair>) {
-        val encoded = pairs.joinToString(PAIR_SEPARATOR) {
-            listOf(it.sourceCode, it.sourceName, it.targetCode, it.targetName).joinToString(FIELD_SEPARATOR)
-        }
-        store.putString(KEY_LANGUAGE_PAIRS, encoded)
+    override fun setSourceLanguage(code: String) {
+        val language = languageForCode(code) ?: return
+        if (language == target()) swapLanguages() else store.putString(KEY_SOURCE_LANGUAGE, language.code)
+        remember(language)
     }
 
-    override fun setSelectedLanguagePairIndex(index: Int) = store.putInt(KEY_SELECTED_PAIR, index)
+    override fun setTargetLanguage(code: String) {
+        val language = languageForCode(code) ?: return
+        if (language == source()) swapLanguages() else store.putString(KEY_TARGET_LANGUAGE, language.code)
+        remember(language)
+    }
+
+    override fun swapLanguages() {
+        val (source, target) = source() to target()
+        store.putString(KEY_SOURCE_LANGUAGE, target.code)
+        store.putString(KEY_TARGET_LANGUAGE, source.code)
+    }
 
     override fun setGeneralContext(context: String) =
         store.putString(KEY_GENERAL_CONTEXT, context.take(MAX_GENERAL_CONTEXT_CHARS))
@@ -51,14 +63,19 @@ class DefaultConfigRepository(
     // Keys go into HTTP headers, where a pasted line break is illegal.
     override fun setSonioxApiKey(key: String) = store.putString(KEY_SONIOX_API_KEY, key.trim())
 
-    private fun readLanguagePairs(): List<LanguagePair> {
-        if (!store.contains(KEY_LANGUAGE_PAIRS)) return defaultLanguagePairs
-        val raw = store.getString(KEY_LANGUAGE_PAIRS, "")
-        if (raw.isBlank()) return defaultLanguagePairs
-        return raw.split(PAIR_SEPARATOR).mapNotNull { entry ->
-            val fields = entry.split(FIELD_SEPARATOR)
-            if (fields.size != 4) null else LanguagePair(fields[0], fields[1], fields[2], fields[3])
-        }
+    private fun source() = languageForCode(store.getString(KEY_SOURCE_LANGUAGE, DEFAULT_SOURCE_LANGUAGE))
+        ?: languageForCode(DEFAULT_SOURCE_LANGUAGE)!!
+
+    private fun target() = languageForCode(store.getString(KEY_TARGET_LANGUAGE, DEFAULT_TARGET_LANGUAGE))
+        ?: languageForCode(DEFAULT_TARGET_LANGUAGE)!!
+
+    private fun recentCodes(): List<String> =
+        store.getString(KEY_RECENT_LANGUAGES, "").split(LIST_SEPARATOR).filter { it.isNotBlank() }
+            .ifEmpty { listOf(DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE) }
+
+    private fun remember(language: Language) {
+        val recent = (listOf(language.code) + recentCodes()).distinct().take(MAX_RECENT_LANGUAGES)
+        store.putString(KEY_RECENT_LANGUAGES, recent.joinToString(LIST_SEPARATOR))
     }
 
     companion object {
@@ -67,12 +84,15 @@ class DefaultConfigRepository(
         // sent to the Anthropic API.
         private const val KEY_API_KEY = "anthropic_api_key"
         private const val KEY_LEGACY_KIMI_API_KEY = "api_key"
-        private const val KEY_LANGUAGE_PAIRS = "language_pairs"
-        private const val KEY_SELECTED_PAIR = "selected_pair"
+        // The old "language_pairs" / "selected_pair" keys only ever held English → Russian,
+        // which is also the default, so they are simply no longer read.
+        private const val KEY_SOURCE_LANGUAGE = "source_language"
+        private const val KEY_TARGET_LANGUAGE = "target_language"
+        private const val KEY_RECENT_LANGUAGES = "recent_languages"
+        private const val MAX_RECENT_LANGUAGES = 5
         private const val KEY_GENERAL_CONTEXT = "general_context"
         private const val KEY_CONVERSATION_CONTEXT = "conversation_context"
         private const val KEY_SONIOX_API_KEY = "soniox_api_key"
-        private const val PAIR_SEPARATOR = ";;"
-        private const val FIELD_SEPARATOR = "|"
+        private const val LIST_SEPARATOR = ","
     }
 }

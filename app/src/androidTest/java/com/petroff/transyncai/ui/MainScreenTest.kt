@@ -1,6 +1,7 @@
 package com.petroff.transyncai.ui
 
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -13,7 +14,8 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
+import com.petroff.transyncai.config.Language
+import com.petroff.transyncai.config.languageForCode
 import com.petroff.transyncai.session.SessionUiState
 import com.petroff.transyncai.session.ViewMode
 import org.junit.Assert.assertEquals
@@ -25,13 +27,88 @@ class MainScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
 
+    private val english = languageForCode("en")!!
+    private val russian = languageForCode("ru")!!
+
+    @Test
+    fun theLanguagePickerSearchesAndPicksTheSpeechLanguage() {
+        var picked: Language? = null
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(),
+                sourceLanguage = english,
+                targetLanguage = russian,
+                recentLanguages = listOf(english, russian),
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+                onSourceLanguageChange = { picked = it },
+            )
+        }
+
+        composeRule.onNodeWithTag("sourceLanguage").performClick()
+        composeRule.onNodeWithText("Recent").assertExists()
+        composeRule.onNodeWithTag("languageSearch").performTextInput("hind")
+        composeRule.onNodeWithText("Hindi").performClick()
+
+        assertEquals("hi", picked?.code)
+        composeRule.onNodeWithTag("languageSearch").assertDoesNotExist()
+    }
+
+    @Test
+    fun theSwapButtonSwapsLanguages() {
+        var swapped = false
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(),
+                sourceLanguage = english,
+                targetLanguage = russian,
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+                onSwapLanguages = { swapped = true },
+            )
+        }
+
+        composeRule.onNodeWithTag("sourceLanguage").assertTextEquals("English")
+        composeRule.onNodeWithTag("targetLanguage").assertTextEquals("Russian")
+        composeRule.onNodeWithContentDescription("Swap languages").performClick()
+
+        assertEquals(true, swapped)
+    }
+
+    @Test
+    fun languagesCannotChangeWhileListening() {
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(isListening = true),
+                sourceLanguage = english,
+                targetLanguage = russian,
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+            )
+        }
+
+        composeRule.onNodeWithTag("sourceLanguage").assertIsNotEnabled()
+        composeRule.onNodeWithTag("targetLanguage").assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("Swap languages").assertIsNotEnabled()
+    }
+
     @Test
     fun startStopButtonTogglesLabel() {
         var listening = false
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(isListening = listening),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = { listening = !listening },
                 onViewModeChange = {},
@@ -52,7 +129,8 @@ class MainScreenTest {
                     sourceText = "hello world",
                     translatedText = "should not show",
                 ),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -77,7 +155,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(isListening = true, viewMode = ViewMode.TRANSCRIPTION_ONLY),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -96,7 +175,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(isListening = false),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -113,7 +193,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(isListening = true),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -131,7 +212,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(viewMode = ViewMode.TRANSCRIPTION_ONLY),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -149,7 +231,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(isListening = false),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "Existing conversation topic",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -173,7 +256,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(viewMode = ViewMode.TRANSCRIPTION_ONLY),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 hasApiKey = false,
                 onToggleListening = {},
@@ -198,7 +282,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(viewMode = ViewMode.BOTH),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 hasApiKey = false,
                 onToggleListening = {},
@@ -221,7 +306,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(viewMode = ViewMode.TRANSCRIPTION_ONLY),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 hasApiKey = true,
                 onToggleListening = {},
@@ -242,7 +328,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(viewMode = ViewMode.BOTH),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -259,7 +346,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(viewMode = ViewMode.TRANSCRIPTION_ONLY),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -277,7 +365,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = state,
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -300,7 +389,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(lastRecordId = "r1"),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -323,7 +413,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(lastRecordId = "r1"),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
@@ -346,7 +437,8 @@ class MainScreenTest {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(),
-                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                sourceLanguage = english,
+                targetLanguage = russian,
                 currentConversationContext = "",
                 onToggleListening = {},
                 onViewModeChange = {},
