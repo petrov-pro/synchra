@@ -4,7 +4,11 @@ class RoomHistoryRepository(private val dao: ConversationRecordDao) : HistoryRep
 
     override suspend fun getRecords(): List<ConversationRecord> = dao.getAll().map { it.toDomain() }
 
-    override suspend fun search(query: String): List<ConversationRecord> = dao.search(query).map { it.toDomain() }
+    // What the customer types is plain text: %, _ and \ must not act as LIKE wildcards.
+    override suspend fun search(query: String): List<ConversationRecord> {
+        val escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        return dao.search(escaped).map { it.toDomain() }
+    }
 
     override suspend fun addRecord(record: ConversationRecord) = dao.insert(record.toEntity())
 

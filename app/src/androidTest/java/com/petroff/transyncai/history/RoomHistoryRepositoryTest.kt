@@ -101,5 +101,18 @@ class RoomHistoryRepositoryTest {
         assertEquals(listOf("1"), repository.search("ВСТРЕЧА").map { it.id })
         assertEquals(listOf("2"), repository.search("meeting WITH").map { it.id })
     }
+
+    @Test
+    fun searchTreatsPercentAndUnderscoreAsPlainCharacters() = runBlocking {
+        repository.addRecord(record(id = "1").copy(sourceText = "a 50% discount"))
+        repository.addRecord(record(id = "2").copy(sourceText = "500 offers"))
+        repository.addRecord(record(id = "3").copy(sourceText = "the user_id field"))
+        repository.addRecord(record(id = "4").copy(sourceText = "the userXid field"))
+        repository.addRecord(record(id = "5").copy(sourceText = "C:\\temp folder"))
+
+        assertEquals(listOf("1"), repository.search("50%").map { it.id })
+        assertEquals(listOf("3"), repository.search("user_id").map { it.id })
+        assertEquals(listOf("5"), repository.search("C:\\temp").map { it.id })
+    }
 }
 

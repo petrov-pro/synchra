@@ -12,11 +12,12 @@ interface ConversationRecordDao {
 
     @Query(
         "SELECT * FROM conversation_records WHERE " +
-            "title LIKE '%' || :query || '%' OR " +
-            "sourceText LIKE '%' || :query || '%' OR " +
-            "translatedText LIKE '%' || :query || '%' " +
+            "title LIKE '%' || :query || '%' ESCAPE '\\' OR " +
+            "sourceText LIKE '%' || :query || '%' ESCAPE '\\' OR " +
+            "translatedText LIKE '%' || :query || '%' ESCAPE '\\' " +
             "ORDER BY timestamp DESC"
     )
+    /** [query] must be LIKE-escaped with '\\' (see RoomHistoryRepository.search). */
     suspend fun search(query: String): List<ConversationRecordEntity>
 
     @Insert
