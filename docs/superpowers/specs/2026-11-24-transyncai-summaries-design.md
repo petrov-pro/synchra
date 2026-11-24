@@ -53,6 +53,13 @@ conversation, written by Claude, which also gives the conversation a meaningful 
   screen → that conversation, original view). Nothing is saved, so the customer can try
   Summary again later.
 - While a summary is being generated, show progress and don't allow a second request.
+- **Empty balance / invalid key are not retried** — retrying can't help. Claude:
+  "Your Anthropic balance is empty. Top it up at console.anthropic.com." /
+  "Your Anthropic API key is invalid. Check it in Settings." shown in the same pop-up.
+- **Soniox empty balance** (live session, error 402): stop the session without crashing
+  and show "Your Soniox balance is empty. Top it up at console.soniox.com." instead of the
+  raw API error; an invalid Soniox key (401) shows "Your Soniox API key is invalid. Check
+  it in Settings."
 
 ## Data
 - `conversation_records` gets a nullable `summary` column. `title` (already nullable) is set

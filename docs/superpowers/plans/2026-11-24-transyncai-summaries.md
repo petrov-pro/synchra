@@ -24,6 +24,11 @@ Commands: unit `./gradlew -q :app:testDebugUnitTest --tests '<pattern>'`; instru
 - Claude model `claude-haiku-5-5`, key = existing "Anthropic API key" setting (`AppConfig.apiKey`, base URL `AppConfig.apiBaseUrl`).
 - On Claude failure: **3 attempts in total**, then an error pop-up; on dismiss stay on / return to the screen where Summary was pressed (main → main, conversation → that conversation, original view). Never crash. Nothing is saved on failure.
 - No API key: Summary shows a message pointing to Settings (Anthropic API key) and makes no request.
+- Empty balance or invalid key are **not retried** and get plain messages (exact copy):
+  - Claude balance: `Your Anthropic balance is empty. Top it up at console.anthropic.com.`
+  - Claude key: `Your Anthropic API key is invalid. Check it in Settings.`
+  - Soniox balance (402): `Your Soniox balance is empty. Top it up at console.soniox.com.`
+  - Soniox key (401): `Your Soniox API key is invalid. Check it in Settings.`
 - While summarizing: progress shown, no second request.
 - DB migration 1→2 must keep existing records.
 - No manual renaming; remove `setTitle`/`updateTitle`.
@@ -86,13 +91,16 @@ Commands: unit `./gradlew -q :app:testDebugUnitTest --tests '<pattern>'`; instru
   - `data class ConversationSummary(val title: String, val summary: String)`
   - `interface Summarizer { suspend fun summarize(sourceText: String, translatedText: String, targetLanguageName: String): Result<ConversationSummary> }` — one attempt, never throws.
   - `class ClaudeSummarizer(baseUrl: String, apiKeyProvider: () -> String?, maxRetries: Int = 0) : Summarizer` — retries are the caller's job (Task 3), so the SDK does none by default.
+  - `class SummaryException(val kind: Kind, message: String) : Exception(message)` with `enum class Kind { OUT_OF_CREDIT, INVALID_KEY, TEMPORARY }` — the failure inside `Result`. Classification: HTTP 401/403 → `INVALID_KEY`; HTTP 402, or any 4xx whose error message contains `credit balance` (Anthropic answers an empty balance with 400 "Your credit balance is too low…") → `OUT_OF_CREDIT`; everything else (network, 5xx, 429, 529, malformed answer) → `TEMPORARY`. Read the status from the SDK's `AnthropicServiceException.statusCode()`.
 
 - [ ] **Step 1: Write the failing tests** (pattern: existing `ClaudeTranslationClientTest` in git history `c2dd85d` — MockWebServer, `baseUrl = server.url("/").toString().trimEnd('/')`, Anthropic message JSON response; the SDK sends the key as `Authorization: Bearer <key>`)
   - `returns title and summary parsed from Claude's JSON` — response text `{"title":"Встреча","summary":"Обсудили сроки."}` → `ConversationSummary("Встреча","Обсудили сроки.")`; request path `/v1/messages`, body contains `"model":"claude-haiku-5-5"`, `"type":"json_schema"`, `"thinking":{"type":"disabled"}`, `Russian` (target language), the source text and the translation.
   - `transcription-only conversation sends only the source text` — `translatedText = ""` → body contains the source and not `TRANSLATION:`.
   - `long conversation is sent whole` — 60_000-char source → body contains its last 20 chars.
   - `malformed answer is a failure` — response text `not json` → `isFailure`; and `{"title":"","summary":"x"}` → `isFailure`.
-  - `server error is a failure` — 500 → `isFailure`, exactly 1 request (`maxRetries = 0`).
+  - `server error is a failure` — 500 → `isFailure`, kind `TEMPORARY`, exactly 1 request (`maxRetries = 0`).
+  - `empty balance is OUT_OF_CREDIT` — 400 `{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}` → kind `OUT_OF_CREDIT`.
+  - `rejected key is INVALID_KEY` — 401 `{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}` → kind `INVALID_KEY`.
   - `missing api key fails without a request` — provider `{ null }` → `isFailure`, `server.requestCount == 0`.
 
 - [ ] **Step 2: Run to verify failure** — `--tests '*ClaudeSummarizerTest*'` → compile FAIL.
@@ -116,7 +124,7 @@ Commands: unit `./gradlew -q :app:testDebugUnitTest --tests '<pattern>'`; instru
   - `enum class ConversationView { SUMMARY, ORIGINAL }`
   - `data class ConversationUiState(val record: ConversationRecord? = null, val view: ConversationView = ConversationView.ORIGINAL, val viewMode: ViewMode = ViewMode.BOTH, val isSummarizing: Boolean = false, val errorMessage: String? = null, val closeOnErrorDismiss: Boolean = false)`
   - `class ConversationViewModel(recordId: String, historyRepository: HistoryRepository, summarizer: Summarizer, configRepository: ConfigRepository, summarizeOnOpen: Boolean) : ViewModel()` with `val uiState: StateFlow<ConversationUiState>`, `fun onSummaryClick()`, `fun onOriginalClick()`, `fun setViewMode(mode: ViewMode)`, `fun dismissError()`.
-  - Behavior: on init load the record; `view = SUMMARY` if it has a summary. `summarizeOnOpen` (main-screen Summary) runs `onSummaryClick()` after loading and sets `closeOnErrorDismiss = true` for its failure. `onSummaryClick`: stored summary → just `view = SUMMARY`; already summarizing → ignore; blank Anthropic key → `errorMessage = "Set your Anthropic API key in Settings to make summaries."`; else up to `SUMMARY_ATTEMPTS = 3` calls, first success → `setSummary` then state record updated + `view = SUMMARY`; all failed → `errorMessage = "Couldn't make the summary. Please try again later."`, view stays `ORIGINAL`. `dismissError` clears `errorMessage` (the UI reads `closeOnErrorDismiss` to navigate back).
+  - Behavior: on init load the record; `view = SUMMARY` if it has a summary. `summarizeOnOpen` (main-screen Summary) runs `onSummaryClick()` after loading and sets `closeOnErrorDismiss = true` for its failure. `onSummaryClick`: stored summary → just `view = SUMMARY`; already summarizing → ignore; blank Anthropic key → `errorMessage = "Set your Anthropic API key in Settings to make summaries."`; else up to `SUMMARY_ATTEMPTS = 3` calls, first success → `setSummary` then state record updated + `view = SUMMARY`; all failed → `errorMessage = "Couldn't make the summary. Please try again later."`, view stays `ORIGINAL`. A failure of kind `OUT_OF_CREDIT` or `INVALID_KEY` stops the attempts at once and shows the exact Global Constraints copy for it. `dismissError` clears `errorMessage` (the UI reads `closeOnErrorDismiss` to navigate back).
   - `FakeSummarizer(results: MutableList<Result<ConversationSummary>>)` with `var calls: Int` and an optional `gate: CompletableDeferred<Unit>?` to hold a call open.
 
 - [ ] **Step 1: Write the failing tests** (use `StandardTestDispatcher` + `Dispatchers.setMain`, `FakeHistoryRepository`, `DefaultConfigRepository(FakeSettingsStore(), "https://api.anthropic.com", DEFAULT_LANGUAGE_PAIRS)` with `setApiKey("sk-ant")`)
@@ -127,6 +135,8 @@ Commands: unit `./gradlew -q :app:testDebugUnitTest --tests '<pattern>'`; instru
   - `three failures show the error and save nothing` — `calls == 3`, `errorMessage != null`, `view == ORIGINAL`, record summary still null, `closeOnErrorDismiss == false`; `dismissError()` clears it.
   - `summarizeOnOpen failure asks to close on dismiss` — `closeOnErrorDismiss == true`.
   - `missing Anthropic key shows the Settings message without calling Claude`.
+  - `empty balance is not retried and shows the top-up message` — results `[OUT_OF_CREDIT]` → `calls == 1`, `errorMessage == "Your Anthropic balance is empty. Top it up at console.anthropic.com."`.
+  - `invalid key is not retried` — `calls == 1`, key message.
   - `second tap while summarizing is ignored` — gate held open, `onSummaryClick()` twice → `calls == 1`, `isSummarizing == true`.
   - `cancelled summary saves nothing` — gate held, `viewModel.viewModelScope.cancel()` (or clear via `ViewModelStore`), advance → record summary still null.
 
@@ -182,3 +192,20 @@ Commands: unit `./gradlew -q :app:testDebugUnitTest --tests '<pattern>'`; instru
 - [ ] **Step 4: Run to verify pass** — full unit suite and full `connectedDebugAndroidTest` on the emulator PASS.
 - [ ] **Step 5: Manual check on the phone** (POCO, serial `4L9HDA9H9DKREIDM`, `ANDROID_SERIAL=4L9HDA9H9DKREIDM ./gradlew -q installDebug`): app starts with existing history intact (migration), History list shows date names, a session → Stop → Summary produces a Russian title + summary, reopening shows it without a new request (`adb logcat | grep TransyncAI/Claude` shows one call).
 - [ ] **Step 6: Commit** — `git commit -m "Add History and conversation screens with Summary/Original and the main-screen Summary button"`
+
+---
+
+### Task 6: Plain Soniox balance / key errors
+
+**Files:**
+- Modify: `M/soniox/SonioxTranscript.kt`, `T/soniox/SonioxTranscriptTest.kt`, `T/soniox/SonioxSpeechTranslatorTest.kt`
+
+**Interfaces:**
+- Produces: `SonioxEvent.Error.message` — for `error_code` 402 the Soniox balance copy, for 401 the Soniox key copy (Global Constraints); other codes keep `"Soniox <code>: <error_message>"`. `SonioxSpeechTranslator` already stops audio, reports `onError` and finishes the session on any `Error` — unchanged.
+
+- [ ] **Step 1: Write the failing tests** — `SonioxTranscriptTest`: `empty balance becomes the top-up message` (402 → exact copy), `rejected key becomes the settings message` (401 → exact copy), `other errors keep the API text` (500 → contains `"Soniox 500"`). Update `SonioxSpeechTranslatorTest.a server error is reported and the session still finishes` to expect the 402 copy.
+- [ ] **Step 2: Run to verify failure** — `--tests '*Soniox*'` FAIL.
+- [ ] **Step 3: Implement** the mapping in `SonioxTranscript.apply`.
+- [ ] **Step 4: Run to verify pass** — `--tests '*Soniox*'` PASS.
+- [ ] **Step 5: Commit** — `git commit -m "Show plain messages for an empty Soniox balance or invalid key"`
+
