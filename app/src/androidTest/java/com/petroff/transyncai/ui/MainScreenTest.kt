@@ -1,6 +1,8 @@
 package com.petroff.transyncai.ui
 
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -337,6 +339,27 @@ class MainScreenTest {
         val history = composeRule.onNodeWithContentDescription("History").fetchSemanticsNode().boundsInRoot
         val settings = composeRule.onNodeWithContentDescription("Settings").fetchSemanticsNode().boundsInRoot
         assertEquals(settings.top, history.top)
+    }
+
+    @Test
+    fun conversationContextStopsAtItsLimitAndShowsACounter() {
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(),
+                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+            )
+        }
+
+        composeRule.onNodeWithContentDescription("Context").performClick()
+        composeRule.onNodeWithText("Conversation context", useUnmergedTree = true)
+        composeRule.onAllNodes(hasSetTextAction())[0].performTextInput("x".repeat(2_100))
+
+        composeRule.onNodeWithText("2000 / 2000").assertExists()
     }
 }
 

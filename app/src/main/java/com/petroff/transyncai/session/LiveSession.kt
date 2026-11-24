@@ -1,6 +1,7 @@
 package com.petroff.transyncai.session
 
 import com.petroff.transyncai.config.ConfigRepository
+import com.petroff.transyncai.config.LanguagePair
 import com.petroff.transyncai.history.ConversationRecord
 import com.petroff.transyncai.history.HistoryRepository
 import com.petroff.transyncai.soniox.LiveRequest
@@ -114,7 +115,7 @@ class LiveSession(
                         )
                     }
                 }
-                saveHistoryRecordIfNeeded(live, isCurrent, context)
+                saveHistoryRecordIfNeeded(live, isCurrent, context, pair)
             },
         )
     }
@@ -126,9 +127,14 @@ class LiveSession(
         _uiState.update { it.copy(isListening = false, isSending = false) }
     }
 
-    private fun saveHistoryRecordIfNeeded(live: LiveTranscript, isCurrentSession: Boolean, context: String) {
+    // pair and context are the ones the session started with: Settings may change meanwhile.
+    private fun saveHistoryRecordIfNeeded(
+        live: LiveTranscript,
+        isCurrentSession: Boolean,
+        context: String,
+        pair: LanguagePair,
+    ) {
         if (live.source.isBlank() && live.translation.isBlank()) return
-        val pair = configRepository.getConfig().selectedLanguagePair
         val record = ConversationRecord(
             id = UUID.randomUUID().toString(),
             timestamp = System.currentTimeMillis(),

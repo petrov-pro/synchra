@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.petroff.transyncai.config.LanguagePair
+import com.petroff.transyncai.config.MAX_CONVERSATION_CONTEXT_CHARS
 import com.petroff.transyncai.session.SessionUiState
 import com.petroff.transyncai.session.ViewMode
 
@@ -185,8 +186,9 @@ private fun ContextDialog(
                 )
                 TextField(
                     value = contextField,
-                    onValueChange = { contextField = it },
+                    onValueChange = { contextField = it.take(MAX_CONVERSATION_CONTEXT_CHARS) },
                     label = { Text("Conversation context") },
+                    supportingText = { Text("${contextField.length} / $MAX_CONVERSATION_CONTEXT_CHARS") },
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth(),
                 )

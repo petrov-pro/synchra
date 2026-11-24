@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.petroff.transyncai.config.LanguagePair
+import com.petroff.transyncai.config.MAX_GENERAL_CONTEXT_CHARS
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,8 +155,8 @@ fun SettingsScreen(
             // session parameter) — with extra breathing room and a divider ahead of it.
             HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 
-            // Standing context sent to Soniox with every session unless a per-conversation context
-            // (set from the Main screen's Context button) is active — see SessionViewModel.
+            // Standing context, sent with every session ahead of the per-conversation one from the
+            // Main screen's Context button — see LiveSession.start.
             FieldRow(
                 field = "General context",
                 helpText = "Background for every conversation (topic, names, terms). It helps " +
@@ -165,8 +166,9 @@ fun SettingsScreen(
             ) {
                 TextField(
                     value = generalContextField,
-                    onValueChange = { generalContextField = it },
+                    onValueChange = { generalContextField = it.take(MAX_GENERAL_CONTEXT_CHARS) },
                     label = { Text("General context") },
+                    supportingText = { Text("${generalContextField.length} / $MAX_GENERAL_CONTEXT_CHARS") },
                     placeholder = { Text("e.g. We're discussing a technical support call about billing") },
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth(),

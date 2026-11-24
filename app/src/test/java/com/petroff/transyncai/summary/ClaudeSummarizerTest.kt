@@ -153,6 +153,15 @@ class ClaudeSummarizerTest {
 
         summarizer().summarize("Hi", "Привет", "Russian")
 
-        assertFalse(server.takeRequest().body.readUtf8().contains("CONTEXT:"))
+        assertFalse(server.takeRequest().body.readUtf8().contains("CONTEXT ("))
+    }
+
+    @Test
+    fun `Claude is told the context is background, not part of the conversation`() = runTest {
+        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+
+        summarizer().summarize("Hi", "Привет", "Russian", context = "drugs: metoprolol")
+
+        assertTrue(server.takeRequest().body.readUtf8().contains("never summarize CONTEXT"))
     }
 }

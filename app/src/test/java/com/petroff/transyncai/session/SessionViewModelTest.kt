@@ -4,6 +4,7 @@ import com.petroff.transyncai.config.ConfigRepository
 import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.FakeSettingsStore
+import com.petroff.transyncai.config.LanguagePair
 import com.petroff.transyncai.soniox.LiveRequest
 import com.petroff.transyncai.soniox.LiveTranscript
 import com.petroff.transyncai.soniox.SpeechTranslator
@@ -287,5 +288,22 @@ class SessionViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals("Cardiology lecture\n\nFollow-up with patient Ravi", historyRepository.addedRecords.single().context)
+    }
+
+    @Test
+    fun `the conversation keeps the languages it was recorded in`() = runTest(dispatcher) {
+        configRepository.setLanguagePairs(
+            listOf(
+                LanguagePair("en", "English", "ru", "Russian"),
+                LanguagePair("en", "English", "de", "German"),
+            )
+        )
+        viewModel.start()
+        configRepository.setSelectedLanguagePairIndex(1) // changed in Settings mid-recording
+
+        speechTranslator.finish("Hi", "Привет")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Russian", historyRepository.addedRecords.single().targetLanguageName)
     }
 }

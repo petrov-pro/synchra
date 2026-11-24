@@ -1,5 +1,10 @@
 package com.petroff.transyncai.config
 
+// Both contexts go to Soniox together, and Soniox rejects a context over ~8,000 tokens
+// (~10,000 characters): these caps keep the pair under that even for dense text.
+const val MAX_GENERAL_CONTEXT_CHARS = 6_000
+const val MAX_CONVERSATION_CONTEXT_CHARS = 2_000
+
 data class AppConfig(
     // Anthropic API (Claude), kept for conversation summaries.
     val apiBaseUrl: String,

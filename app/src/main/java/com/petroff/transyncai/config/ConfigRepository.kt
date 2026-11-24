@@ -21,8 +21,9 @@ class DefaultConfigRepository(
         apiKey = store.getString(KEY_API_KEY, "").ifBlank { null },
         languagePairs = readLanguagePairs(),
         selectedLanguagePairIndex = store.getInt(KEY_SELECTED_PAIR, 0),
-        generalContext = store.getString(KEY_GENERAL_CONTEXT, ""),
-        conversationContext = store.getString(KEY_CONVERSATION_CONTEXT, ""),
+        // Capped on read too: values saved before the limits existed may be longer.
+        generalContext = store.getString(KEY_GENERAL_CONTEXT, "").take(MAX_GENERAL_CONTEXT_CHARS),
+        conversationContext = store.getString(KEY_CONVERSATION_CONTEXT, "").take(MAX_CONVERSATION_CONTEXT_CHARS),
         sonioxApiKey = store.getString(KEY_SONIOX_API_KEY, "").ifBlank { null },
     )
 
@@ -41,9 +42,11 @@ class DefaultConfigRepository(
 
     override fun setSelectedLanguagePairIndex(index: Int) = store.putInt(KEY_SELECTED_PAIR, index)
 
-    override fun setGeneralContext(context: String) = store.putString(KEY_GENERAL_CONTEXT, context)
+    override fun setGeneralContext(context: String) =
+        store.putString(KEY_GENERAL_CONTEXT, context.take(MAX_GENERAL_CONTEXT_CHARS))
 
-    override fun setConversationContext(context: String) = store.putString(KEY_CONVERSATION_CONTEXT, context)
+    override fun setConversationContext(context: String) =
+        store.putString(KEY_CONVERSATION_CONTEXT, context.take(MAX_CONVERSATION_CONTEXT_CHARS))
 
     // Keys go into HTTP headers, where a pasted line break is illegal.
     override fun setSonioxApiKey(key: String) = store.putString(KEY_SONIOX_API_KEY, key.trim())

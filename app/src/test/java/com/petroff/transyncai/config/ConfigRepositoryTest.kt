@@ -2,6 +2,7 @@ package com.petroff.transyncai.config
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -103,5 +104,22 @@ class ConfigRepositoryTest {
         assertEquals("snx-1", repo.getConfig().sonioxApiKey)
         assertEquals("sk-ant-1", repo.getConfig().apiKey)
     }
-}
 
+    @Test
+    fun `contexts are capped so together they fit Soniox's context limit`() {
+        repo.setGeneralContext("g".repeat(10_000))
+        repo.setConversationContext("c".repeat(10_000))
+
+        val config = repo.getConfig()
+        assertEquals(MAX_GENERAL_CONTEXT_CHARS, config.generalContext.length)
+        assertEquals(MAX_CONVERSATION_CONTEXT_CHARS, config.conversationContext.length)
+        assertTrue(MAX_GENERAL_CONTEXT_CHARS + MAX_CONVERSATION_CONTEXT_CHARS <= 8_000)
+    }
+
+    @Test
+    fun `a context stored before the limit existed is capped when read`() {
+        store.putString("general_context", "g".repeat(10_000))
+
+        assertEquals(MAX_GENERAL_CONTEXT_CHARS, repo.getConfig().generalContext.length)
+    }
+}

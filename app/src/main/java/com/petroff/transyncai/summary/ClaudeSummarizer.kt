@@ -66,7 +66,9 @@ class ClaudeSummarizer(
                     "You summarize a recorded conversation for the person who recorded it. Write " +
                         "everything in $targetLanguageName. The title is at most 60 characters, one " +
                         "line. The summary is a few short paragraphs or bullet points with the key " +
-                        "points, decisions and action items. Reply only with the JSON."
+                        "points, decisions and action items. CONTEXT, if given, is background from " +
+                        "the user to get names and terms right: never summarize CONTEXT or present " +
+                        "it as something said. Reply only with the JSON."
                 )
                 .thinking(ThinkingConfigDisabled.builder().build())
                 .outputConfig(
