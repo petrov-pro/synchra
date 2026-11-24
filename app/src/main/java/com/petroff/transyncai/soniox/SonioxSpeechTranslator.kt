@@ -59,6 +59,7 @@ class SonioxSpeechTranslator(
         // Soniox bills every second it receives, silence included: send speech, not pauses.
         val gate = SilenceGate()
         val ending = AtomicBoolean(false)
+        @Volatile var opened = false
         val transcript = SonioxTranscript()
         val done = AtomicBoolean(false)
         @Volatile var latest = LiveTranscript("", "")
@@ -90,6 +91,13 @@ class SonioxSpeechTranslator(
         val httpRequest = Request.Builder().url(url).header("Authorization", "Bearer $apiKey").build()
         session.socket = httpClient.newWebSocket(httpRequest, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                session.opened = true
+                // Stop was tapped while still connecting: nothing to record, just close.
+                if (session.ending.get()) {
+                    webSocket.close(NORMAL_CLOSURE, null)
+                    session.finish()
+                    return
+                }
                 webSocket.send(configJson(request))
                 session.audio.start { samples ->
                     val decision = session.gate.process(samples)
@@ -145,7 +153,8 @@ class SonioxSpeechTranslator(
     private fun endAudio(session: Session) {
         session.audio.stop()
         val ws = session.socket ?: return
-        ws.send("") // empty text frame = end of audio; the server answers with finished:true
+        // Before onOpen the end-of-audio frame would go out ahead of the config; onOpen closes instead.
+        if (session.opened) ws.send("") // end of audio; the server answers with finished:true
         // Don't let a lost "finished" response hold the session (and its history save) forever.
         thread(isDaemon = true, name = "SonioxStopTimeout") {
             Thread.sleep(STOP_TIMEOUT_MS)

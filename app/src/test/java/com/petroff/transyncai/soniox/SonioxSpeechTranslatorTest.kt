@@ -21,7 +21,9 @@ import org.junit.Test
 
 private class FakeAudioSource : AudioSource {
     var stopped = false
+    var started = false
     override fun start(onSamples: (FloatArray) -> Unit) {
+        started = true
         onSamples(floatArrayOf(0f, 0.5f, -0.5f))
     }
     override fun stop() { stopped = true }
@@ -75,7 +77,9 @@ class SonioxSpeechTranslatorTest {
 
     @After
     fun tearDown() {
-        server.shutdown()
+        // Some tests leave a stream open on purpose (a session still recording); the mock
+        // server then can't drain its queue, which is not a failure of the test itself.
+        runCatching { server.shutdown() }
     }
 
     private fun translator(key: String? = "snx-test") = SonioxSpeechTranslator(
@@ -229,6 +233,25 @@ class SonioxSpeechTranslatorTest {
         assertTrue(audio.stopped)
         val frames = generateSequence { fakeServer.texts.poll(1, TimeUnit.SECONDS) }.toList()
         assertTrue("end-of-audio frame sent", frames.contains(""))
+    }
+
+    @Test
+    fun `stop while still connecting never starts the microphone or sends audio`() {
+        // A slow network: the stream opens only after the customer already tapped Stop.
+        server.shutdown()
+        server = MockWebServer()
+        fakeServer = FakeSonioxServer()
+        server.enqueue(MockResponse().withWebSocketUpgrade(fakeServer).setHeadersDelay(500, TimeUnit.MILLISECONDS))
+        server.start()
+        val t = translator()
+
+        t.startWith(LiveRequest("en", "ru", ""))
+        t.stop()
+
+        assertNotNull(finished.poll(5, TimeUnit.SECONDS))
+        assertFalse(audio.started)
+        assertEquals(null, fakeServer.binaries.poll(500, TimeUnit.MILLISECONDS))
+        assertTrue(errors.isEmpty())
     }
 }
 
