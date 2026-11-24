@@ -13,6 +13,9 @@ import org.junit.Assert.assertEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import org.junit.Assert.assertTrue
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithTag
+import com.petroff.synchra.summary.SummarySections
 import org.junit.Rule
 import org.junit.Test
 
@@ -78,6 +81,17 @@ class ConversationScreenTest {
 
         assertTrue(title.bottom <= divider.top)
         assertTrue(divider.bottom <= body.top)
+    }
+
+    @Test
+    fun summaryShowsEachBlockUnderItsHeading() {
+        val stored = SummarySections("Сроки релиза", "Обсудили пятницу.", listOf("Релиз в пятницу")).encode()
+        show(ConversationUiState(record = record(summary = stored), view = ConversationView.SUMMARY))
+
+        for (text in listOf("Topic", "Сроки релиза", "Overview", "Обсудили пятницу.", "Decisions and results", "• Релиз в пятницу")) {
+            composeRule.onNodeWithText(text).assertExists()
+        }
+        composeRule.onAllNodesWithTag("summaryBlockDivider").assertCountEquals(2)
     }
 
     @Test

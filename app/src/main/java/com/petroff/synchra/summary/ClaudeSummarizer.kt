@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -67,9 +68,13 @@ class ClaudeSummarizer(
                     "You summarize a conversation that the user recorded with their phone, for the " +
                         "user to read later. The user is often a listener in a meeting or call and may " +
                         "not have said anything. The transcript has no speaker labels, so you usually " +
-                        "cannot tell who said what. Write everything in $targetLanguageName. The title " +
-                        "is at most 60 characters, one line. The summary is a few short paragraphs or " +
-                        "bullet points with the key points, decisions and action items.\n\n" +
+                        "cannot tell who said what. Write every field in $targetLanguageName.\n\n" +
+                        "Fill these fields:\n" +
+                        "- title: a name for the meeting, at most 60 characters, one line.\n" +
+                        "- topic: what the meeting was about, in one short sentence.\n" +
+                        "- overview: a short account of what was discussed, 2 to 5 sentences.\n" +
+                        "- decisions: the final decisions and results, and agreed next steps, one " +
+                        "short item each. An empty list if nothing was decided; never invent one.\n\n" +
                         "Report only what the transcript says, as neutrally as it says it: \"the " +
                         "engineers said the work is done\", \"a speaker asked…\", \"it was agreed…\". " +
                         "Never attribute a statement, task or decision to the user, or to anyone named " +
@@ -77,7 +82,8 @@ class ClaudeSummarizer(
                         "said or owns it. If it is unclear who owns an action item, say so instead of " +
                         "guessing.\n\n" +
                         "The user may add two background sections. GLOBAL CONTEXT applies to all their " +
-                        "conversations: the user, their company, team, product or terms. ABOUT THIS CONVERSATION describes this meeting: " +
+                        "conversations: the user, their company, team, product or terms. ABOUT THIS CONVERSATION " +
+                        "describes this meeting: " +
                         "topic, participants, terms; its participants are the likely speakers, but do " +
                         "not guess which speaker is which participant unless the transcript makes it " +
                         "clear. Use both sections only to understand the topic and to spell names and " +
@@ -133,10 +139,18 @@ class ClaudeSummarizer(
 
     private fun parse(text: String): ConversationSummary {
         val json = Json.parseToJsonElement(text).jsonObject
-        val title = json["title"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
-        val summary = json["summary"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
-        if (title.isBlank() || summary.isBlank()) error("Claude returned an empty title or summary")
-        return ConversationSummary(title, summary)
+        fun field(name: String) = json[name]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val title = field("title")
+        val sections = SummarySections(
+            topic = field("topic"),
+            overview = field("overview"),
+            decisions = json["decisions"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull?.trim() }
+                ?.filter { it.isNotBlank() }.orEmpty(),
+        )
+        if (title.isBlank() || sections.topic.isBlank() || sections.overview.isBlank()) {
+            error("Claude returned an empty title, topic or overview")
+        }
+        return ConversationSummary(title, sections.encode())
     }
 
     companion object {
@@ -147,9 +161,16 @@ class ClaudeSummarizer(
             .putAdditionalProperty("type", JsonValue.from("object"))
             .putAdditionalProperty(
                 "properties",
-                JsonValue.from(mapOf("title" to mapOf("type" to "string"), "summary" to mapOf("type" to "string"))),
+                JsonValue.from(
+                    mapOf(
+                        "title" to mapOf("type" to "string"),
+                        "topic" to mapOf("type" to "string"),
+                        "overview" to mapOf("type" to "string"),
+                        "decisions" to mapOf("type" to "array", "items" to mapOf("type" to "string")),
+                    )
+                ),
             )
-            .putAdditionalProperty("required", JsonValue.from(listOf("title", "summary")))
+            .putAdditionalProperty("required", JsonValue.from(listOf("title", "topic", "overview", "decisions")))
             .putAdditionalProperty("additionalProperties", JsonValue.from(false))
             .build()
     }

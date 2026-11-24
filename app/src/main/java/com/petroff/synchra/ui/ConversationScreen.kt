@@ -38,6 +38,7 @@ import com.petroff.synchra.history.ConversationView
 import com.petroff.synchra.history.displayDateTime
 import com.petroff.synchra.history.displayTitle
 import com.petroff.synchra.session.ViewMode
+import com.petroff.synchra.summary.SummarySections
 
 /** One saved conversation: its Claude summary, or the original texts with the view switch. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,11 +102,13 @@ fun ConversationScreen(
 
             if (state.view == ConversationView.SUMMARY && record.summary != null) {
                 val title = record.displayTitle()
+                // Blocks for summaries made since they existed; older ones are one plain text.
+                val sections = SummarySections.parse(record.summary)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("summaryText")
-                        .copyOnLongPress("Summary", "$title\n\n${record.summary}")
+                                .copyOnLongPress("Summary", sections?.toPlainText(title) ?: "$title\n\n${record.summary}")
                         .verticalScroll(rememberScrollState()),
                 ) {
                     Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("summaryTitle"))
@@ -117,7 +120,15 @@ fun ConversationScreen(
                     )
                     // Sets the title apart from the summary itself.
                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp).testTag("summaryDivider"))
-                    Text(record.summary, style = MaterialTheme.typography.bodyLarge)
+                    if (sections == null) {
+                        Text(record.summary, style = MaterialTheme.typography.bodyLarge)
+                    } else {
+                        SummaryBlock(SummarySections.TOPIC_HEADING, listOf(sections.topic))
+                        SummaryBlockDivider()
+                        SummaryBlock(SummarySections.OVERVIEW_HEADING, listOf(sections.overview))
+                        SummaryBlockDivider()
+                        SummaryBlock(SummarySections.DECISIONS_HEADING, sections.decisionLines())
+                    }
                 }
             } else {
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -140,4 +151,21 @@ fun ConversationScreen(
             }
         }
     }
+}
+
+/** One block of a summary: its heading, then its text (one line per decision). */
+@Composable
+private fun SummaryBlock(heading: String, lines: List<String>) {
+    Text(heading, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+    lines.forEach { line ->
+        Text(line, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+@Composable
+private fun SummaryBlockDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 14.dp).testTag("summaryBlockDivider"),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
 }

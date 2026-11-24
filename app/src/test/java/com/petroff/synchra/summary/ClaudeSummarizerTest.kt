@@ -50,11 +50,17 @@ class ClaudeSummarizerTest {
 
     @Test
     fun `returns title and summary parsed from Claude's JSON`() = runTest {
-        server.enqueue(claudeAnswer("""{"title":"Встреча","summary":"Обсудили сроки."}"""))
+        server.enqueue(
+            claudeAnswer(
+                """{"title":"Встреча","topic":"Сроки","overview":"Обсудили сроки.","decisions":["Срок — пятница"]}"""
+            )
+        )
 
         val result = summarizer().summarize("We agreed on the deadline.", "Мы согласовали срок.", "Russian")
 
-        assertEquals(ConversationSummary("Встреча", "Обсудили сроки."), result.getOrThrow())
+        val summary = result.getOrThrow()
+        assertEquals("Встреча", summary.title)
+        assertEquals(SummarySections("Сроки", "Обсудили сроки.", listOf("Срок — пятница")), SummarySections.parse(summary.summary))
         val request = server.takeRequest()
         assertEquals("/v1/messages", request.path)
         val body = request.body.readUtf8()
@@ -68,7 +74,7 @@ class ClaudeSummarizerTest {
 
     @Test
     fun `transcription-only conversation sends only the source text`() = runTest {
-        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+        server.enqueue(claudeAnswer("""{"title":"T","topic":"P","overview":"O","decisions":[]}"""))
 
         summarizer().summarize("Only the original.", "", "Russian")
 
@@ -79,7 +85,7 @@ class ClaudeSummarizerTest {
 
     @Test
     fun `long conversation is sent whole`() = runTest {
-        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+        server.enqueue(claudeAnswer("""{"title":"T","topic":"P","overview":"O","decisions":[]}"""))
         val long = "word ".repeat(12_000) + "THE-VERY-END-MARKER"
 
         summarizer().summarize(long, "", "Russian")
@@ -90,7 +96,7 @@ class ClaudeSummarizerTest {
     @Test
     fun `malformed answer is a failure`() = runTest {
         server.enqueue(claudeAnswer("not json"))
-        server.enqueue(claudeAnswer("""{"title":"","summary":"x"}"""))
+        server.enqueue(claudeAnswer("""{"title":"","topic":"P","overview":"O","decisions":[]}"""))
 
         val notJson = summarizer().summarize("a", "b", "Russian")
         val blankTitle = summarizer().summarize("a", "b", "Russian")
@@ -140,7 +146,7 @@ class ClaudeSummarizerTest {
 
     @Test
     fun `the recorded context goes to Claude as background`() = runTest {
-        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+        server.enqueue(claudeAnswer("""{"title":"T","topic":"P","overview":"O","decisions":[]}"""))
 
         summarizer().summarize("Hi", "Привет", "Russian", conversationContext = "Follow-up with patient Ravi")
 
@@ -149,7 +155,7 @@ class ClaudeSummarizerTest {
 
     @Test
     fun `no context means no context section`() = runTest {
-        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+        server.enqueue(claudeAnswer("""{"title":"T","topic":"P","overview":"O","decisions":[]}"""))
 
         summarizer().summarize("Hi", "Привет", "Russian")
 
@@ -160,7 +166,7 @@ class ClaudeSummarizerTest {
 
     @Test
     fun `Claude is told the context is background, not part of the conversation`() = runTest {
-        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+        server.enqueue(claudeAnswer("""{"title":"T","topic":"P","overview":"O","decisions":[]}"""))
 
         summarizer().summarize("Hi", "Привет", "Russian", conversationContext = "drugs: metoprolol")
 
@@ -169,7 +175,7 @@ class ClaudeSummarizerTest {
 
     @Test
     fun `Claude is told the recorder may not be a speaker, so no one is credited without the transcript saying so`() = runTest {
-        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+        server.enqueue(claudeAnswer("""{"title":"T","topic":"P","overview":"O","decisions":[]}"""))
 
         summarizer().summarize("The engineers said it was done", "", "Russian", userContext = "My name is Andrey")
 
@@ -181,7 +187,7 @@ class ClaudeSummarizerTest {
 
     @Test
     fun `the user's background and the conversation's context are separate sections`() = runTest {
-        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+        server.enqueue(claudeAnswer("""{"title":"T","topic":"P","overview":"O","decisions":[]}"""))
 
         summarizer().summarize(
             "Let's plan the sprint", "", "Russian",
@@ -193,5 +199,15 @@ class ClaudeSummarizerTest {
         assertTrue(body.contains("GLOBAL CONTEXT (about the user, their company, team or product; the user recorded this and may not speak in it):\\nMy name is Andrey"))
         assertTrue(body.contains("ABOUT THIS CONVERSATION (from the user):\\nSprint planning with John and Maria"))
         assertTrue(body.contains("do not guess which speaker is which participant"))
+    }
+
+    @Test
+    fun `Claude is asked for topic, overview and decisions as separate fields`() = runTest {
+        server.enqueue(claudeAnswer("""{"title":"T","topic":"P","overview":"O","decisions":[]}"""))
+
+        summarizer().summarize("Hi", "", "Russian")
+
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body.contains("\"required\":[\"title\",\"topic\",\"overview\",\"decisions\"]"))
     }
 }
