@@ -76,8 +76,8 @@ class ClaudeSummarizer(
                         "in the sections below, unless the transcript itself names them as the one who " +
                         "said or owns it. If it is unclear who owns an action item, say so instead of " +
                         "guessing.\n\n" +
-                        "The user may add two background sections. ABOUT THE USER describes the person " +
-                        "who recorded and their work. ABOUT THIS CONVERSATION describes this meeting: " +
+                        "The user may add two background sections. BACKGROUND applies to all their " +
+                        "conversations: the user, their company, team, product or terms. ABOUT THIS CONVERSATION describes this meeting: " +
                         "topic, participants, terms; its participants are the likely speakers, but do " +
                         "not guess which speaker is which participant unless the transcript makes it " +
                         "clear. Use both sections only to understand the topic and to spell names and " +
@@ -95,7 +95,7 @@ class ClaudeSummarizer(
                     buildString {
                         // Helps with names, terms and what the talk is about.
                         if (userContext.isNotBlank()) {
-                            append("ABOUT THE USER (who recorded; may not speak in the conversation):\n")
+                            append("BACKGROUND (about the user, their company, team or product; the user recorded this and may not speak in it):\n")
                             append(userContext).append("\n\n")
                         }
                         if (conversationContext.isNotBlank()) {

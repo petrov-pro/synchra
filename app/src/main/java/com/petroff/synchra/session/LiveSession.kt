@@ -81,7 +81,7 @@ class LiveSession(
         val conversationContext = config.conversationContext
         // Soniox gets both as one text, each under a heading so it knows what each part is.
         val sonioxContext = listOfNotNull(
-            userContext.takeIf { it.isNotBlank() }?.let { "About the person recording:\n$it" },
+            userContext.takeIf { it.isNotBlank() }?.let { "Background:\n$it" },
             conversationContext.takeIf { it.isNotBlank() }?.let { "About this conversation:\n$it" },
         ).joinToString("\n\n")
         speechTranslator.start(
