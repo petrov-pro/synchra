@@ -7,6 +7,7 @@ import com.petroff.transyncai.session.ViewMode
 import com.petroff.transyncai.summary.ConversationSummary
 import com.petroff.transyncai.summary.Summarizer
 import com.petroff.transyncai.summary.SummaryException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -95,7 +96,8 @@ class ConversationViewModel(
 
     private suspend fun summarizeWithRetries(record: ConversationRecord): Result<ConversationSummary> {
         var last: Result<ConversationSummary> = Result.failure(IllegalStateException("not attempted"))
-        repeat(SUMMARY_ATTEMPTS) {
+        repeat(SUMMARY_ATTEMPTS) { attempt ->
+            if (attempt > 0) delay(RETRY_DELAY_MS)
             last = summarizer.summarize(record.sourceText, record.translatedText, record.targetLanguageName)
             val kind = (last.exceptionOrNull() as? SummaryException)?.kind
             // Success, or a failure another attempt can't fix (no money, bad key).
@@ -118,6 +120,8 @@ class ConversationViewModel(
 
     companion object {
         const val SUMMARY_ATTEMPTS = 3
+        // Pause before each retry, so an overloaded or rate-limited Claude gets a moment.
+        const val RETRY_DELAY_MS = 1_000L
         private const val MISSING_KEY_MESSAGE = "Set your Anthropic API key in Settings to make summaries."
     }
 }

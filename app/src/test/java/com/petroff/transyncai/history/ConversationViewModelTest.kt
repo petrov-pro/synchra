@@ -13,7 +13,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -218,4 +220,22 @@ class ConversationViewModelTest {
 
         assertNull(history.getRecord("r1")!!.summary)
     }
+
+    @Test
+    fun `retries wait a moment so a briefly overloaded Claude can recover`() = runTest(dispatcher) {
+        history.addRecord(record())
+        val summarizer = FakeSummarizer(mutableListOf(FakeSummarizer.fail(), FakeSummarizer.ok()))
+        val vm = viewModel(summarizer)
+
+        vm.onSummaryClick()
+        runCurrent()
+        assertEquals(1, summarizer.calls)
+        advanceTimeBy(ConversationViewModel.RETRY_DELAY_MS - 1)
+        runCurrent()
+        assertEquals(1, summarizer.calls)
+        advanceTimeBy(2)
+        runCurrent()
+        assertEquals(2, summarizer.calls)
+    }
 }
+
