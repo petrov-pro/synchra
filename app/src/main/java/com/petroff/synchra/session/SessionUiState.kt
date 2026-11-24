@@ -15,4 +15,7 @@ data class SessionUiState(
     val isSending: Boolean = false,
     // When the current/last session started, for the notification's timer.
     val startedAt: Long? = null,
+    // Whether the current/last recording asked Soniox for a translation (billed). Fixed at
+    // Start by the view mode; switching the view afterwards only changes what is shown.
+    val translationRequested: Boolean = true,
 )

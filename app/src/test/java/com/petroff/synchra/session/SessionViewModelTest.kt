@@ -35,6 +35,7 @@ class FakeSpeechTranslator : SpeechTranslator {
     var request: LiveRequest? = null
     var stopped = false
     private val sessions = mutableListOf<Session>()
+    val startCount get() = sessions.size
 
     override fun start(
         request: LiveRequest,
@@ -134,6 +135,23 @@ class SessionViewModelTest {
         viewModel.start()
 
         assertNull(speechTranslator.request!!.targetLang)
+        assertFalse(viewModel.uiState.value.translationRequested)
+    }
+
+    @Test
+    fun `the view can switch while recording without touching the stream`() {
+        viewModel.start()
+        val request = speechTranslator.request
+
+        viewModel.setViewMode(ViewMode.TRANSLATION_ONLY)
+        viewModel.setViewMode(ViewMode.TRANSCRIPTION_ONLY)
+        speechTranslator.emit("Hello", "Привет")
+
+        assertTrue(viewModel.uiState.value.isListening)
+        assertTrue(viewModel.uiState.value.translationRequested)
+        assertEquals(1, speechTranslator.startCount)
+        assertEquals(request, speechTranslator.request)
+        assertEquals("Привет", viewModel.uiState.value.translatedText)
     }
 
     @Test

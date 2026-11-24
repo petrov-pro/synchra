@@ -146,17 +146,31 @@ class MainScreenTest {
     }
 
     @Test
-    fun viewModeSwitchIsDisabledWhileListening() {
-        // viewMode is pinned away from the BOTH default (which the other tests rely on)
-        // because BOTH renders a "Translation" panel section header alongside the
-        // "Translation" segmented-button label, making onNodeWithText("Translation")
-        // ambiguous (2 matching nodes) and the assertion below fail regardless of which
-        // node it happened to resolve to. TRANSCRIPTION_ONLY hides that header so the
-        // segmented button is the only "Translation" node, without touching what's under
-        // test: whether all three segmented buttons are disabled while listening.
+    fun viewModeSwitchWorksWhileListening() {
+        var picked: ViewMode? = null
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(isListening = true, viewMode = ViewMode.TRANSCRIPTION_ONLY),
+                sourceLanguage = english,
+                targetLanguage = russian,
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = { picked = it },
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Both").assertIsEnabled().performClick()
+
+        assertEquals(ViewMode.BOTH, picked)
+    }
+
+    @Test
+    fun translationPanelExplainsWhenTheRecordingHasNoTranslation() {
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(isListening = true, viewMode = ViewMode.BOTH, translationRequested = false),
                 sourceLanguage = english,
                 targetLanguage = russian,
                 currentConversationContext = "",
@@ -167,9 +181,7 @@ class MainScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("Both").assertIsNotEnabled()
-        composeRule.onNodeWithText("Transcription").assertIsNotEnabled()
-        composeRule.onNodeWithText("Translation").assertIsNotEnabled()
+        composeRule.onNodeWithText("No translation: this recording was started in Transcription mode.").assertExists()
     }
 
     @Test

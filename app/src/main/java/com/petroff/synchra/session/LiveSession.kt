@@ -77,6 +77,7 @@ class LiveSession(
         }
         val pair = config.selectedLanguagePair
         val translate = _uiState.value.viewMode != ViewMode.TRANSCRIPTION_ONLY
+        _uiState.update { it.copy(translationRequested = translate) }
         val userContext = config.generalContext
         val conversationContext = config.conversationContext
         // Soniox gets both as one text, each under a heading so it knows what each part is.

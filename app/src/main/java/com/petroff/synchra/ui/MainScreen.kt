@@ -138,12 +138,8 @@ fun MainScreen(
                 onSwap = onSwapLanguages,
             )
 
-            // Disabled while listening: SessionViewModel's translate-gate (Task 8) checks
-            // viewMode at segment-arrival time, not whether a key was present when the
-            // session started — switching into Both/Translation-only mid-session with no
-            // key set would surface a (harmless, no-network-call) error rather than being
-            // caught proactively. Locking the switch while isListening closes that gap at
-            // the UI layer instead of reworking already-reviewed ViewModel logic.
+            // Only what is shown: works while recording too. Whether Soniox translates is
+            // decided at Start (see LiveSession.start), so the bill doesn't change mid-session.
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 ViewMode.entries.forEachIndexed { index, mode ->
                     // Without the Soniox key nothing works. Rather than a real Compose-disabled
@@ -154,7 +150,6 @@ fun MainScreen(
                     SegmentedButton(
                         selected = uiState.viewMode == mode,
                         onClick = { if (missingApiKey) onApiKeyRequired() else onViewModeChange(mode) },
-                        enabled = !uiState.isListening,
                         colors = if (missingApiKey) {
                             SegmentedButtonDefaults.colors(
                                 inactiveContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
@@ -184,6 +179,8 @@ fun MainScreen(
                 viewMode = uiState.viewMode,
                 sourceText = uiState.sourceText,
                 translatedText = uiState.translatedText,
+                translationNote = if (uiState.translationRequested) null
+                else "No translation: this recording was started in Transcription mode.",
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             )
         }

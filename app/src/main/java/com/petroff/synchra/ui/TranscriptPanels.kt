@@ -25,6 +25,8 @@ fun TranscriptPanels(
     sourceText: String,
     translatedText: String,
     modifier: Modifier = Modifier,
+    // Shown in place of the translation when there is none to show and why.
+    translationNote: String? = null,
 ) {
     Column(modifier = modifier) {
         if (viewMode != ViewMode.TRANSLATION_ONLY) {
@@ -42,6 +44,7 @@ fun TranscriptPanels(
             TextPanel(
                 label = "Translation",
                 text = translatedText,
+                note = translationNote.takeIf { translatedText.isBlank() },
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("translationPanel"),
             )
         }
@@ -49,13 +52,16 @@ fun TranscriptPanels(
 }
 
 @Composable
-private fun TextPanel(label: String, text: String, modifier: Modifier = Modifier) {
+private fun TextPanel(label: String, text: String, modifier: Modifier = Modifier, note: String? = null) {
     val scrollState = rememberScrollState()
     LaunchedEffect(text) {
         scrollState.animateScrollTo(scrollState.maxValue)
     }
     Column(modifier = modifier.copyOnLongPress(label, text)) {
         Text(label, style = MaterialTheme.typography.labelLarge)
+        note?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.headlineSmall,
