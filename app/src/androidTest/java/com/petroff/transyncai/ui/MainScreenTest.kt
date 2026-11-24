@@ -185,8 +185,10 @@ class MainScreenTest {
     }
 
     @Test
-    fun tappingTranscriptionWorksNormallyEvenWithoutApiKey() {
+    fun tappingTranscriptionWithoutApiKeyAlsoRedirects() {
+        // Soniox does the transcription too, so every mode needs its key.
         var newMode: ViewMode? = null
+        var redirected = false
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(viewMode = ViewMode.BOTH),
@@ -197,13 +199,14 @@ class MainScreenTest {
                 onViewModeChange = { newMode = it },
                 onOpenSettings = {},
                 onSaveConversationContext = {},
-                onApiKeyRequired = {},
+                onApiKeyRequired = { redirected = true },
             )
         }
 
         composeRule.onNodeWithText("Transcription").performClick()
 
-        assertEquals(ViewMode.TRANSCRIPTION_ONLY, newMode)
+        assertEquals(null, newMode)
+        assertEquals(true, redirected)
     }
 
     @Test

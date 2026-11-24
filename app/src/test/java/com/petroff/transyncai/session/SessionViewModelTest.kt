@@ -4,7 +4,9 @@ import com.petroff.transyncai.config.ConfigRepository
 import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.FakeSettingsStore
-import kotlinx.coroutines.CompletableDeferred
+import com.petroff.transyncai.soniox.LiveRequest
+import com.petroff.transyncai.soniox.LiveTranscript
+import com.petroff.transyncai.soniox.SpeechTranslator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -14,16 +16,44 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+
+class FakeSpeechTranslator : SpeechTranslator {
+    var request: LiveRequest? = null
+    var stopped = false
+    private var onUpdate: ((LiveTranscript) -> Unit)? = null
+    private var onError: ((String) -> Unit)? = null
+    private var onFinished: ((LiveTranscript) -> Unit)? = null
+
+    override fun start(
+        request: LiveRequest,
+        onUpdate: (LiveTranscript) -> Unit,
+        onError: (String) -> Unit,
+        onFinished: (LiveTranscript) -> Unit,
+    ) {
+        this.request = request
+        this.onUpdate = onUpdate
+        this.onError = onError
+        this.onFinished = onFinished
+    }
+
+    override fun stop() {
+        stopped = true
+    }
+
+    fun emit(source: String, translation: String) = onUpdate!!(LiveTranscript(source, translation))
+    fun fail(message: String) = onError!!(message)
+    fun finish(source: String, translation: String) = onFinished!!(LiveTranscript(source, translation))
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
-    private lateinit var recognizer: FakeSpeechRecognizer
-    private lateinit var translator: FakeTranslator
+    private lateinit var speechTranslator: FakeSpeechTranslator
     private lateinit var configRepository: ConfigRepository
     private lateinit var historyRepository: FakeHistoryRepository
     private lateinit var viewModel: SessionViewModel
@@ -31,18 +61,15 @@ class SessionViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        recognizer = FakeSpeechRecognizer()
-        translator = FakeTranslator()
+        speechTranslator = FakeSpeechTranslator()
         configRepository = DefaultConfigRepository(
             store = FakeSettingsStore(),
-            defaultBufferSize = 6,
             defaultApiBaseUrl = "https://api.anthropic.com",
             defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
-            defaultChunkSizeWords = 8,
         )
-        configRepository.setApiKey("sk-test")
+        configRepository.setSonioxApiKey("snx-test")
         historyRepository = FakeHistoryRepository()
-        viewModel = SessionViewModel(recognizer, translator, configRepository, historyRepository, FakeSpeechTranslator())
+        viewModel = SessionViewModel(speechTranslator, configRepository, historyRepository)
     }
 
     @After
@@ -51,211 +78,73 @@ class SessionViewModelTest {
     }
 
     @Test
-    fun `start with a key in Both mode starts the recognizer`() {
+    fun `start streams through Soniox with the language pair and context`() {
+        configRepository.setGeneralContext("Cardiology lecture")
+
         viewModel.start()
-        assertTrue(recognizer.started)
+
+        assertEquals(LiveRequest(sourceLang = "en", targetLang = "ru", context = "Cardiology lecture"), speechTranslator.request)
         assertTrue(viewModel.uiState.value.isListening)
     }
 
     @Test
-    fun `Both mode calls the translator for each final segment`() = runTest(dispatcher) {
+    fun `Soniox updates replace the shown source and translation`() {
         viewModel.start()
-        recognizer.emit("hello world", isFinal = true)
-        dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(listOf("hello world"), translator.calls)
-        assertEquals("translated", viewModel.uiState.value.translatedText)
+        speechTranslator.emit("Hello", "Привет")
+        speechTranslator.emit("Hello world", "Привет мир")
+
+        assertEquals("Hello world", viewModel.uiState.value.sourceText)
+        assertEquals("Привет мир", viewModel.uiState.value.translatedText)
     }
 
     @Test
-    fun `Transcription-only mode never calls the translator`() = runTest(dispatcher) {
-        viewModel.setViewMode(ViewMode.TRANSCRIPTION_ONLY)
-        viewModel.start()
-        recognizer.emit("hello world", isFinal = true)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertTrue(translator.calls.isEmpty())
-        assertTrue(viewModel.uiState.value.sourceText.contains("hello world"))
-    }
-
-    @Test
-    fun `Transcription-only mode can start even without an api key`() {
-        configRepository.setApiKey("")
+    fun `Transcription-only asks Soniox for no translation`() {
         viewModel.setViewMode(ViewMode.TRANSCRIPTION_ONLY)
 
         viewModel.start()
 
-        assertTrue(recognizer.started)
+        assertNull(speechTranslator.request!!.targetLang)
     }
 
     @Test
-    fun `Both mode blocks start when the api key is missing`() {
-        configRepository.setApiKey("")
-        viewModel.setViewMode(ViewMode.BOTH)
-
-        viewModel.start()
-
-        assertFalse(recognizer.started)
-        assertFalse(viewModel.uiState.value.canStart)
-    }
-
-    @Test
-    fun `canStart is false proactively, before any start attempt, when Both mode has no key`() {
-        val noKeyRepo = DefaultConfigRepository(
-            store = FakeSettingsStore(),
-            defaultBufferSize = 6,
-            defaultApiBaseUrl = "https://api.anthropic.com",
-            defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
-            defaultChunkSizeWords = 8,
-        )
-        val freshViewModel = SessionViewModel(FakeSpeechRecognizer(), FakeTranslator(), noKeyRepo, FakeHistoryRepository(), FakeSpeechTranslator())
-
-        assertFalse(freshViewModel.uiState.value.canStart)
-    }
-
-    @Test
-    fun `refreshCanStart picks up a key saved directly via ConfigRepository`() {
-        configRepository.setApiKey("")
-        viewModel.setViewMode(ViewMode.BOTH)
-        assertFalse(viewModel.uiState.value.canStart)
-
-        configRepository.setApiKey("sk-saved-in-settings")
-        viewModel.refreshCanStart()
-
+    fun `Soniox needs only the Soniox key, in every view mode`() {
+        // No Anthropic key at all: Soniox translates by itself.
         assertTrue(viewModel.uiState.value.canStart)
+
+        configRepository.setSonioxApiKey("")
+        viewModel.setViewMode(ViewMode.TRANSCRIPTION_ONLY)
+        assertFalse(viewModel.uiState.value.canStart)
+
+        viewModel.start()
+        assertNull(speechTranslator.request)
     }
 
     @Test
-    fun `stop saves a history record with the final transcript and translation`() = runTest(dispatcher) {
+    fun `stop saves history once Soniox delivers the final transcript`() = runTest(dispatcher) {
         viewModel.start()
-        recognizer.emit("hello world", isFinal = true)
-        dispatcher.scheduler.advanceUntilIdle()
+        speechTranslator.emit("Good morn", "Доброе")
 
         viewModel.stop()
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals(1, historyRepository.addedRecords.size)
-        val saved = historyRepository.addedRecords.single()
-        assertEquals("English", saved.sourceLanguageName)
-        assertEquals("Russian", saved.targetLanguageName)
-        assertTrue(saved.sourceText.contains("hello world"))
-        assertEquals("translated", saved.translatedText)
-    }
-
-    @Test
-    fun `stop does not save a history record when nothing was said`() = runTest(dispatcher) {
-        viewModel.start()
-
-        viewModel.stop()
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertTrue(historyRepository.addedRecords.isEmpty())
-    }
-
-    @Test
-    fun `stop waits for an in-flight translation before saving the history record`() = runTest(dispatcher) {
-        val translationGate = CompletableDeferred<Unit>()
-        translator.beforeReturn = { translationGate.await() }
-        viewModel.start()
-        recognizer.emit("hello world", isFinal = true)
-        dispatcher.scheduler.runCurrent() // let the queue consumer reach translate() and suspend on the gate
-
-        viewModel.stop()
-        dispatcher.scheduler.runCurrent() // let stop()'s save coroutine start and suspend on translationJob.join()
-
-        assertTrue(historyRepository.addedRecords.isEmpty())
-
-        translationGate.complete(Unit)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals(1, historyRepository.addedRecords.size)
-        assertEquals("translated", historyRepository.addedRecords.single().translatedText)
-    }
-
-    @Test
-    fun `stop stops the recognizer and updates state`() {
-        viewModel.start()
-        viewModel.stop()
-
-        assertTrue(recognizer.stopped)
+        assertTrue(speechTranslator.stopped)
         assertFalse(viewModel.uiState.value.isListening)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(historyRepository.addedRecords.isEmpty())
+
+        speechTranslator.finish("Good morning", "Доброе утро")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val record = historyRepository.addedRecords.single()
+        assertEquals("Good morning", record.sourceText)
+        assertEquals("Доброе утро", record.translatedText)
     }
 
     @Test
-    fun `Both mode translates a chunk once enough new words accumulate, without waiting for isFinal`() = runTest(dispatcher) {
-        viewModel.start()
-        // Default chunker threshold is 8 stable words with a 2-word unstable tail, so 11+
-        // growing words in a single (non-final) partial update crosses it.
-        recognizer.emit("we need to move this consumer over to the new worker service", isFinal = false)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertTrue(translator.calls.isNotEmpty())
-        assertTrue(viewModel.uiState.value.isListening) // still listening, session not stopped by a partial
-    }
-
-    @Test
-    fun `translated text appends across chunks instead of overwriting`() = runTest(dispatcher) {
-        translator.resultFor = { phrase -> Result.success("[$phrase]") }
+    fun `a Soniox error is shown`() {
         viewModel.start()
 
-        recognizer.emit("we need to move this consumer over to the new worker service", isFinal = false)
-        dispatcher.scheduler.advanceUntilIdle()
-        val afterFirstChunk = viewModel.uiState.value.translatedText
+        speechTranslator.fail("Soniox 402: Organization balance exhausted.")
 
-        recognizer.emit(
-            "we need to move this consumer over to the new worker service because it is overloaded now",
-            isFinal = true,
-        )
-        dispatcher.scheduler.advanceUntilIdle()
-        val afterSecondChunk = viewModel.uiState.value.translatedText
-
-        assertTrue(afterFirstChunk.isNotBlank())
-        assertTrue(afterSecondChunk.startsWith(afterFirstChunk))
-        assertTrue(afterSecondChunk.length > afterFirstChunk.length)
-    }
-
-    @Test
-    fun `general context is merged into what is sent to the translator`() = runTest(dispatcher) {
-        configRepository.setGeneralContext("We're discussing a billing support case")
-        viewModel.start()
-        recognizer.emit("hello world", isFinal = true)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertTrue(translator.contexts.last().contains("We're discussing a billing support case"))
-    }
-
-    @Test
-    fun `conversation context overrides general context when both are set`() = runTest(dispatcher) {
-        configRepository.setGeneralContext("General topic ABC")
-        configRepository.setConversationContext("Specific topic XYZ")
-        viewModel.start()
-        recognizer.emit("hello world", isFinal = true)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val ctx = translator.contexts.last()
-        assertTrue(ctx.contains("Specific topic XYZ"))
-        assertFalse(ctx.contains("General topic ABC"))
-    }
-
-    @Test
-    fun `blank conversation context falls back to general context`() = runTest(dispatcher) {
-        configRepository.setGeneralContext("General topic ABC")
-        configRepository.setConversationContext("")
-        viewModel.start()
-        recognizer.emit("hello world", isFinal = true)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertTrue(translator.contexts.last().contains("General topic ABC"))
-    }
-
-    @Test
-    fun `translator failure sets an error but keeps the session listening`() = runTest(dispatcher) {
-        translator.result = Result.failure(RuntimeException("network down"))
-        viewModel.start()
-        recognizer.emit("hello world", isFinal = true)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals("network down", viewModel.uiState.value.errorMessage)
-        assertTrue(viewModel.uiState.value.isListening)
+        assertEquals("Soniox 402: Organization balance exhausted.", viewModel.uiState.value.errorMessage)
     }
 }

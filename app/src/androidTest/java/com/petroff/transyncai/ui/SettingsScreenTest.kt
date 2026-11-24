@@ -9,7 +9,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
-import com.petroff.transyncai.config.Engine
 import com.petroff.transyncai.config.LanguagePair
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -25,17 +24,15 @@ class SettingsScreenTest {
         var savedKey: String? = null
         composeRule.setContent {
             SettingsScreen(
+                currentSonioxApiKey = null,
                 currentApiKey = null,
-                currentBufferSize = 6,
-                currentChunkSizeWords = 8,
                 currentGeneralContext = "",
                 languagePairs = DEFAULT_LANGUAGE_PAIRS,
                 selectedLanguagePairIndex = 0,
                 onSelectLanguagePair = {},
                 onSaveApiKey = { savedKey = it },
-                onSaveBufferSize = {},
-                onSaveChunkSizeWords = {},
                 onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
                 onBack = {},
             )
         }
@@ -51,17 +48,15 @@ class SettingsScreenTest {
         var savedContext: String? = null
         composeRule.setContent {
             SettingsScreen(
+                currentSonioxApiKey = null,
                 currentApiKey = null,
-                currentBufferSize = 6,
-                currentChunkSizeWords = 8,
                 currentGeneralContext = "",
                 languagePairs = DEFAULT_LANGUAGE_PAIRS,
                 selectedLanguagePairIndex = 0,
                 onSelectLanguagePair = {},
                 onSaveApiKey = {},
-                onSaveBufferSize = {},
-                onSaveChunkSizeWords = {},
                 onSaveGeneralContext = { savedContext = it },
+                onSaveSonioxApiKey = {},
                 onBack = {},
             )
         }
@@ -76,17 +71,15 @@ class SettingsScreenTest {
     fun generalContextFieldShowsCurrentValue() {
         composeRule.setContent {
             SettingsScreen(
+                currentSonioxApiKey = null,
                 currentApiKey = null,
-                currentBufferSize = 6,
-                currentChunkSizeWords = 8,
                 currentGeneralContext = "Existing context text",
                 languagePairs = DEFAULT_LANGUAGE_PAIRS,
                 selectedLanguagePairIndex = 0,
                 onSelectLanguagePair = {},
                 onSaveApiKey = {},
-                onSaveBufferSize = {},
-                onSaveChunkSizeWords = {},
                 onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
                 onBack = {},
             )
         }
@@ -98,70 +91,63 @@ class SettingsScreenTest {
     fun apiKeyFieldIsNotFocusedByDefault() {
         composeRule.setContent {
             SettingsScreen(
+                currentSonioxApiKey = null,
                 currentApiKey = null,
-                currentBufferSize = 6,
-                currentChunkSizeWords = 8,
                 currentGeneralContext = "",
                 languagePairs = DEFAULT_LANGUAGE_PAIRS,
                 selectedLanguagePairIndex = 0,
                 onSelectLanguagePair = {},
                 onSaveApiKey = {},
-                onSaveBufferSize = {},
-                onSaveChunkSizeWords = {},
                 onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
                 onBack = {},
             )
         }
 
-        composeRule.onNodeWithText("Anthropic API key").assertIsNotFocused()
+        composeRule.onNodeWithText("Soniox API key").assertIsNotFocused()
     }
 
     @Test
     fun apiKeyFieldIsFocusedWhenAutoFocusRequested() {
         composeRule.setContent {
             SettingsScreen(
+                currentSonioxApiKey = null,
                 currentApiKey = null,
-                currentBufferSize = 6,
-                currentChunkSizeWords = 8,
                 currentGeneralContext = "",
                 languagePairs = DEFAULT_LANGUAGE_PAIRS,
                 selectedLanguagePairIndex = 0,
                 autoFocusApiKey = true,
                 onSelectLanguagePair = {},
                 onSaveApiKey = {},
-                onSaveBufferSize = {},
-                onSaveChunkSizeWords = {},
                 onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
                 onBack = {},
             )
         }
 
-        composeRule.onNodeWithText("Anthropic API key").assertIsFocused()
+        composeRule.onNodeWithText("Soniox API key").assertIsFocused()
     }
 
     @Test
     fun everySettingsFieldHasAHelpIcon() {
         composeRule.setContent {
             SettingsScreen(
+                currentSonioxApiKey = null,
                 currentApiKey = null,
-                currentBufferSize = 6,
-                currentChunkSizeWords = 8,
                 currentGeneralContext = "",
                 languagePairs = DEFAULT_LANGUAGE_PAIRS,
                 selectedLanguagePairIndex = 0,
                 onSelectLanguagePair = {},
                 onSaveApiKey = {},
-                onSaveBufferSize = {},
-                onSaveChunkSizeWords = {},
                 onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
                 onBack = {},
             )
         }
 
         composeRule.onNodeWithContentDescription("Help: Languages").assertExists()
         composeRule.onNodeWithContentDescription("Help: Anthropic API key").assertExists()
-        composeRule.onNodeWithContentDescription("Help: Context buffer size").assertExists()
-        composeRule.onNodeWithContentDescription("Help: Translation chunk size").assertExists()
+        composeRule.onNodeWithContentDescription("Help: Soniox API key").assertExists()
         composeRule.onNodeWithContentDescription("Help: General context").assertExists()
     }
 
@@ -169,17 +155,15 @@ class SettingsScreenTest {
     fun apiKeyHelpIconShowsExplanationAndCanBeDismissed() {
         composeRule.setContent {
             SettingsScreen(
+                currentSonioxApiKey = null,
                 currentApiKey = null,
-                currentBufferSize = 6,
-                currentChunkSizeWords = 8,
                 currentGeneralContext = "",
                 languagePairs = DEFAULT_LANGUAGE_PAIRS,
                 selectedLanguagePairIndex = 0,
                 onSelectLanguagePair = {},
                 onSaveApiKey = {},
-                onSaveBufferSize = {},
-                onSaveChunkSizeWords = {},
                 onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
                 onBack = {},
             )
         }
@@ -197,17 +181,15 @@ class SettingsScreenTest {
         var selectedIndex = 0
         composeRule.setContent {
             SettingsScreen(
+                currentSonioxApiKey = null,
                 currentApiKey = null,
-                currentBufferSize = 6,
-                currentChunkSizeWords = 8,
                 currentGeneralContext = "",
                 languagePairs = pairs,
                 selectedLanguagePairIndex = selectedIndex,
                 onSelectLanguagePair = { selectedIndex = it },
                 onSaveApiKey = {},
-                onSaveBufferSize = {},
-                onSaveChunkSizeWords = {},
                 onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
                 onBack = {},
             )
         }
@@ -220,35 +202,26 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun choosingSonioxAndSavingItsKeyInvokesCallbacks() {
-        var savedEngine: Engine? = null
+    fun enteringAndSavingSonioxKeyInvokesCallback() {
         var savedSonioxKey: String? = null
         composeRule.setContent {
             SettingsScreen(
                 currentApiKey = null,
-                currentBufferSize = 6,
-                currentChunkSizeWords = 8,
                 currentGeneralContext = "",
                 languagePairs = DEFAULT_LANGUAGE_PAIRS,
                 selectedLanguagePairIndex = 0,
                 onSelectLanguagePair = {},
                 onSaveApiKey = {},
-                onSaveBufferSize = {},
-                onSaveChunkSizeWords = {},
                 onSaveGeneralContext = {},
                 onBack = {},
-                currentEngine = Engine.LOCAL,
                 currentSonioxApiKey = null,
-                onSaveEngine = { savedEngine = it },
                 onSaveSonioxApiKey = { savedSonioxKey = it },
             )
         }
 
-        composeRule.onNodeWithText("Soniox (cloud)").performClick()
         composeRule.onNodeWithText("Soniox API key").performTextInput("snx-abc")
         composeRule.onNodeWithText("Save").performScrollTo().performClick()
 
-        assertEquals(Engine.SONIOX, savedEngine)
         assertEquals("snx-abc", savedSonioxKey)
     }
 }

@@ -1,12 +1,11 @@
 package com.petroff.transyncai.config
 
 data class AppConfig(
-    val bufferSize: Int,
+    // Anthropic API (Claude), kept for conversation summaries.
     val apiBaseUrl: String,
     val apiKey: String?,
     val languagePairs: List<LanguagePair>,
     val selectedLanguagePairIndex: Int,
-    val chunkSizeWords: Int,
     // Standing background the customer sets once in Settings (e.g. domain/terminology hints)
     // and general-purpose enough to apply to any conversation.
     val generalContext: String = "",
@@ -14,7 +13,6 @@ data class AppConfig(
     // generalContext when non-blank (see AppConfig.effectiveContext); persists across app
     // restarts like everything else here, but is meant to be replaced each new conversation.
     val conversationContext: String = "",
-    val engine: Engine = Engine.LOCAL,
     val sonioxApiKey: String? = null,
 ) {
     val selectedLanguagePair: LanguagePair

@@ -48,8 +48,8 @@ fun MainScreen(
     onViewModeChange: (ViewMode) -> Unit,
     onOpenSettings: () -> Unit,
     onSaveConversationContext: (String) -> Unit,
-    // Both/Translation need Claude to actually translate; Transcription doesn't. Defaulted so
-    // call sites that don't care about this axis (most existing tests) don't need updating.
+    // Every mode needs the Soniox key (it transcribes and translates). Defaulted so call sites
+    // that don't care about this axis (most existing tests) don't need updating.
     hasApiKey: Boolean = true,
     onApiKeyRequired: () -> Unit = {},
 ) {
@@ -108,11 +108,11 @@ fun MainScreen(
             // the UI layer instead of reworking already-reviewed ViewModel logic.
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 ViewMode.entries.forEachIndexed { index, mode ->
-                    // Both/Translation need an Anthropic API key to do anything useful; Transcription
-                    // doesn't. Rather than a real Compose-disabled state (which would swallow
-                    // the tap), these stay clickable but faded, and redirect to Settings with
-                    // the key field focused — a real disabled state can't route a click anywhere.
-                    val missingApiKey = mode != ViewMode.TRANSCRIPTION_ONLY && !hasApiKey
+                    // Without the Soniox key nothing works. Rather than a real Compose-disabled
+                    // state (which would swallow the tap), the modes stay clickable but faded,
+                    // and redirect to Settings with the key field focused — a real disabled
+                    // state can't route a click anywhere.
+                    val missingApiKey = !hasApiKey
                     SegmentedButton(
                         selected = uiState.viewMode == mode,
                         onClick = { if (missingApiKey) onApiKeyRequired() else onViewModeChange(mode) },

@@ -9,11 +9,9 @@ class SessionViewModelFactory(private val container: AppContainer) : ViewModelPr
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         @Suppress("UNCHECKED_CAST")
         return SessionViewModel(
-            speechRecognizer = container.buildSpeechRecognizer(),
-            translator = container.translator,
+            speechTranslator = container.buildSpeechTranslator(),
             configRepository = container.configRepository,
             historyRepository = container.historyRepository,
-            speechTranslator = container.buildSpeechTranslator(),
         ) as T
     }
 }

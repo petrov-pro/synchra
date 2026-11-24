@@ -24,16 +24,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField(
-            "int", "DEFAULT_BUFFER_SIZE",
-            localProps.getProperty("transync.defaultBufferSize", "6")
-        )
-        buildConfigField(
             "String", "DEFAULT_API_BASE_URL",
             "\"${localProps.getProperty("transync.apiBaseUrl", "https://api.anthropic.com")}\""
-        )
-        buildConfigField(
-            "int", "DEFAULT_CHUNK_SIZE_WORDS",
-            localProps.getProperty("transync.defaultChunkSizeWords", "8")
         )
     }
 
@@ -91,7 +83,6 @@ dependencies {
     implementation("androidx.room:room-ktx:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")
 
-    implementation(files("libs/sherpa-onnx-1.13.6.aar"))
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")

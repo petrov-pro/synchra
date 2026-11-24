@@ -15,21 +15,17 @@ class ConfigRepositoryTest {
         store = FakeSettingsStore()
         repo = DefaultConfigRepository(
             store = store,
-            defaultBufferSize = 6,
             defaultApiBaseUrl = "https://api.anthropic.com",
             defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
-            defaultChunkSizeWords = 8,
         )
     }
 
     @Test
     fun `falls back to build-time defaults when nothing overridden`() {
         val config = repo.getConfig()
-        assertEquals(6, config.bufferSize)
         assertEquals("https://api.anthropic.com", config.apiBaseUrl)
         assertNull(config.apiKey)
         assertEquals(DEFAULT_LANGUAGE_PAIRS, config.languagePairs)
-        assertEquals(8, config.chunkSizeWords)
         assertEquals("", config.generalContext)
         assertEquals("", config.conversationContext)
     }
@@ -47,21 +43,9 @@ class ConfigRepositoryTest {
     }
 
     @Test
-    fun `setChunkSizeWords overrides the default at runtime`() {
-        repo.setChunkSizeWords(12)
-        assertEquals(12, repo.getConfig().chunkSizeWords)
-    }
-
-    @Test
     fun `setApiKey persists and is returned by getConfig`() {
         repo.setApiKey("sk-test-123")
         assertEquals("sk-test-123", repo.getConfig().apiKey)
-    }
-
-    @Test
-    fun `setBufferSize overrides the default at runtime`() {
-        repo.setBufferSize(12)
-        assertEquals(12, repo.getConfig().bufferSize)
     }
 
     @Test
@@ -101,20 +85,11 @@ class ConfigRepositoryTest {
     }
 
     @Test
-    fun `defaults to the local engine with no Soniox key`() {
-        val config = repo.getConfig()
-        assertEquals(Engine.LOCAL, config.engine)
-        assertNull(config.sonioxApiKey)
-    }
-
-    @Test
-    fun `persists the engine choice and the Soniox key separately from the Anthropic key`() {
+    fun `the Soniox key is stored separately from the Anthropic key`() {
         repo.setApiKey("sk-ant-1")
-        repo.setEngine(Engine.SONIOX)
         repo.setSonioxApiKey("snx-1")
 
         val config = repo.getConfig()
-        assertEquals(Engine.SONIOX, config.engine)
         assertEquals("snx-1", config.sonioxApiKey)
         assertEquals("sk-ant-1", config.apiKey)
     }

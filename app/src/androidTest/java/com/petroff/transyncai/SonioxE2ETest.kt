@@ -6,15 +6,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.petroff.transyncai.asr.WavFileAudioSource
 import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.config.DefaultConfigRepository
-import com.petroff.transyncai.config.Engine
 import com.petroff.transyncai.config.FakeSettingsStore
 import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
 import com.petroff.transyncai.session.SessionViewModel
 import com.petroff.transyncai.soniox.SonioxSpeechTranslator
-import com.petroff.transyncai.translate.Translator
-import com.petroff.transyncai.asr.SpeechRecognizer
-import com.petroff.transyncai.asr.AsrSegment
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -91,22 +87,11 @@ class SonioxE2ETest {
     fun sonioxSessionStreamsAudioAndShowsTranscriptAndTranslation() {
         val configRepository = DefaultConfigRepository(
             store = FakeSettingsStore(),
-            defaultBufferSize = 6,
             defaultApiBaseUrl = "https://api.anthropic.com",
             defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
-            defaultChunkSizeWords = 8,
         )
-        configRepository.setEngine(Engine.SONIOX)
         configRepository.setSonioxApiKey("snx-e2e")
         val history = RoomHistoryRepository(database.conversationRecordDao())
-        val unusedRecognizer = object : SpeechRecognizer {
-            override fun start(onSegment: (AsrSegment) -> Unit) = error("local engine must not run")
-            override fun stop() {}
-        }
-        val unusedTranslator = object : Translator {
-            override suspend fun translate(context: String, currentPhrase: String, sourceLang: String, targetLang: String) =
-                error("local translator must not run")
-        }
         val audio = WavFileAudioSource(InstrumentationRegistry.getInstrumentation().context.assets, "test_wavs/0.wav")
         val translator = SonioxSpeechTranslator(
             audioSource = audio,
@@ -114,7 +99,7 @@ class SonioxE2ETest {
             url = server.url("/transcribe-websocket").toString(),
             apiKeyProvider = { configRepository.getConfig().sonioxApiKey },
         )
-        val viewModel = SessionViewModel(unusedRecognizer, unusedTranslator, configRepository, history, translator)
+        val viewModel = SessionViewModel(translator, configRepository, history)
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync { viewModel.start() }
         waitUntil { viewModel.uiState.value.translatedText.isNotBlank() }

@@ -15,7 +15,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.petroff.transyncai.AppContainer
-import com.petroff.transyncai.config.Engine
 import com.petroff.transyncai.session.SessionViewModel
 import com.petroff.transyncai.session.SessionViewModelFactory
 
@@ -31,7 +30,7 @@ fun TransyncAiApp(container: AppContainer) {
                 val uiState by sessionViewModel.uiState.collectAsState()
 
                 // Re-read config whenever the visible screen changes, so edits made in
-                // Settings (API key, buffer size) are picked up as soon as the user
+                // Settings (API keys, context) are picked up as soon as the user
                 // navigates back to Main, without needing ConfigRepository to be reactive.
                 // Also nudge the ViewModel's own canStart, which ConfigRepository changes
                 // don't otherwise propagate into (canStart only recomputes on init/setViewMode).
@@ -68,11 +67,7 @@ fun TransyncAiApp(container: AppContainer) {
                                 // Context dialog in the same session would show stale text.
                                 config = container.configRepository.getConfig()
                             },
-                            hasApiKey = if (config.engine == Engine.SONIOX) {
-                                !config.sonioxApiKey.isNullOrBlank()
-                            } else {
-                                !config.apiKey.isNullOrBlank()
-                            },
+                            hasApiKey = !config.sonioxApiKey.isNullOrBlank(),
                             onApiKeyRequired = {
                                 focusApiKeyOnSettingsOpen = true
                                 navController.navigate("settings")
@@ -81,23 +76,17 @@ fun TransyncAiApp(container: AppContainer) {
                     }
                     composable("settings") {
                         SettingsScreen(
+                            currentSonioxApiKey = config.sonioxApiKey,
                             currentApiKey = config.apiKey,
-                            currentBufferSize = config.bufferSize,
-                            currentChunkSizeWords = config.chunkSizeWords,
                             currentGeneralContext = config.generalContext,
                             languagePairs = config.languagePairs,
                             selectedLanguagePairIndex = config.selectedLanguagePairIndex,
                             onSelectLanguagePair = { container.configRepository.setSelectedLanguagePairIndex(it) },
+                            onSaveSonioxApiKey = { container.configRepository.setSonioxApiKey(it) },
                             onSaveApiKey = { container.configRepository.setApiKey(it) },
-                            onSaveBufferSize = { container.configRepository.setBufferSize(it) },
-                            onSaveChunkSizeWords = { container.configRepository.setChunkSizeWords(it) },
                             onSaveGeneralContext = { container.configRepository.setGeneralContext(it) },
                             onBack = { navController.popBackStack() },
                             autoFocusApiKey = focusApiKeyOnSettingsOpen,
-                            currentEngine = config.engine,
-                            currentSonioxApiKey = config.sonioxApiKey,
-                            onSaveEngine = { container.configRepository.setEngine(it) },
-                            onSaveSonioxApiKey = { container.configRepository.setSonioxApiKey(it) },
                         )
                     }
                 }
