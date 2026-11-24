@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.petroff.transyncai.history.ConversationRecord
+import com.petroff.transyncai.history.displayTitle
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -15,7 +16,7 @@ class HistoryScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private fun record(id: String, title: String? = null) = ConversationRecord(
+    private fun record(id: String, title: String? = null, summary: String? = title?.let { "summary" }) = ConversationRecord(
         id = id,
         timestamp = 1_700_000_000_000L,
         title = title,
@@ -23,6 +24,7 @@ class HistoryScreenTest {
         targetLanguageName = "Russian",
         sourceText = "hello world",
         translatedText = "привет мир",
+        summary = summary,
     )
 
     @Test
@@ -100,4 +102,23 @@ class HistoryScreenTest {
 
         assertEquals("invoice", query)
     }
+
+    @Test
+    fun unsummarizedRecordIsNamedByDateAndSummarizedByTitle() {
+        val unsummarized = record(id = "a")
+        composeRule.setContent {
+            HistoryScreen(
+                records = listOf(unsummarized, record(id = "b", title = "Встреча")),
+                searchQuery = "",
+                onSearchQueryChange = {},
+                onRecordClick = {},
+                onDeleteRecord = {},
+                onBack = {},
+            )
+        }
+
+        composeRule.onNodeWithText(unsummarized.displayTitle()).assertExists()
+        composeRule.onNodeWithText("Встреча").assertExists()
+    }
 }
+

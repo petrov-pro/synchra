@@ -8,6 +8,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
 import com.petroff.transyncai.session.SessionUiState
 import com.petroff.transyncai.session.ViewMode
@@ -264,4 +267,52 @@ class MainScreenTest {
 
         composeRule.onNodeWithTag("sourceTranslationDivider").assertDoesNotExist()
     }
+
+    @Test
+    fun summaryButtonDisabledWithoutLastRecordAndWhileListening() {
+        var state by mutableStateOf(SessionUiState(lastRecordId = null))
+        composeRule.setContent {
+            MainScreen(
+                uiState = state,
+                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Summary").assertIsNotEnabled()
+        state = SessionUiState(isListening = true, lastRecordId = "r1")
+        composeRule.onNodeWithText("Summary").assertIsNotEnabled()
+        state = SessionUiState(lastRecordId = "r1")
+        composeRule.onNodeWithText("Summary").assertIsEnabled()
+    }
+
+    @Test
+    fun historyAndSummaryButtonsInvokeCallbacks() {
+        var history = 0
+        var summary = 0
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(lastRecordId = "r1"),
+                currentLanguagePair = DEFAULT_LANGUAGE_PAIRS.first(),
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+                onOpenHistory = { history++ },
+                onSummary = { summary++ },
+            )
+        }
+
+        composeRule.onNodeWithText("History").performClick()
+        composeRule.onNodeWithText("Summary").performClick()
+
+        assertEquals(1, history)
+        assertEquals(1, summary)
+    }
 }
+

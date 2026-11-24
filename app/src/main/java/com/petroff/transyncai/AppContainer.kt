@@ -13,6 +13,8 @@ import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
 import com.petroff.transyncai.soniox.SonioxSpeechTranslator
 import com.petroff.transyncai.soniox.SpeechTranslator
+import com.petroff.transyncai.summary.ClaudeSummarizer
+import com.petroff.transyncai.summary.Summarizer
 import java.io.File
 import kotlin.concurrent.thread
 import okhttp3.OkHttpClient
@@ -33,6 +35,11 @@ class AppContainer(private val context: Context) {
         store = EncryptedPrefsSettingsStore(context),
         defaultApiBaseUrl = BuildConfig.DEFAULT_API_BASE_URL,
         defaultLanguagePairs = DEFAULT_LANGUAGE_PAIRS,
+    )
+
+    val summarizer: Summarizer = ClaudeSummarizer(
+        baseUrl = configRepository.getConfig().apiBaseUrl,
+        apiKeyProvider = { configRepository.getConfig().apiKey },
     )
 
     init {
