@@ -158,9 +158,9 @@ fun SettingsScreen(
             // (set from the Main screen's Context button) is active — see SessionViewModel.
             FieldRow(
                 field = "General context",
-                helpText = "Background sent with every session to help recognize and translate " +
-                    "your topic and terminology, unless you set a more specific context for " +
-                    "the current conversation using the Context button on the main screen.",
+                helpText = "Background for every conversation (topic, names, terms). It helps " +
+                    "Soniox recognize and translate, and Claude write the summary. The Context " +
+                    "button on the main screen adds details for the current conversation.",
                 onShowHelp = { helpDialog = it },
             ) {
                 TextField(

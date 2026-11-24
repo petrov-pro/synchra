@@ -28,6 +28,7 @@ class RoomHistoryRepository(private val dao: ConversationRecordDao) : HistoryRep
         sourceText = sourceText,
         translatedText = translatedText,
         summary = summary,
+        context = context,
     )
 
     private fun ConversationRecord.toEntity() = ConversationRecordEntity(
@@ -39,5 +40,6 @@ class RoomHistoryRepository(private val dao: ConversationRecordDao) : HistoryRep
         sourceText = sourceText,
         translatedText = translatedText,
         summary = summary,
+        context = context,
     )
 }

@@ -50,6 +50,7 @@ class ClaudeSummarizer(
         sourceText: String,
         translatedText: String,
         targetLanguageName: String,
+        context: String,
     ): Result<ConversationSummary> = withContext(Dispatchers.IO) {
         val apiKey = apiKeyProvider()
         if (apiKey.isNullOrBlank()) {
@@ -76,6 +77,8 @@ class ClaudeSummarizer(
                 )
                 .addUserMessage(
                     buildString {
+                        // Helps with names, terms and what the talk is about.
+                        if (context.isNotBlank()) append("CONTEXT (background from the user):\n").append(context).append("\n\n")
                         append("ORIGINAL:\n").append(sourceText)
                         if (translatedText.isNotBlank()) append("\n\nTRANSLATION:\n").append(translatedText)
                     }

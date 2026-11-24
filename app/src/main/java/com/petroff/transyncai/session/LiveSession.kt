@@ -76,12 +76,15 @@ class LiveSession(
         }
         val pair = config.selectedLanguagePair
         val translate = _uiState.value.viewMode != ViewMode.TRANSCRIPTION_ONLY
+        // Standing background first, then what is specific to this conversation.
+        val context = listOf(config.generalContext, config.conversationContext)
+            .filter { it.isNotBlank() }
+            .joinToString("\n\n")
         speechTranslator.start(
             LiveRequest(
                 sourceLang = pair.sourceCode,
                 targetLang = if (translate) pair.targetCode else null,
-                // Conversation context, falling back to the general one from Settings.
-                context = config.conversationContext.ifBlank { config.generalContext },
+                context = context,
             ),
             onUpdate = { live ->
                 if (session == currentSession) {
@@ -111,7 +114,7 @@ class LiveSession(
                         )
                     }
                 }
-                saveHistoryRecordIfNeeded(live, isCurrent)
+                saveHistoryRecordIfNeeded(live, isCurrent, context)
             },
         )
     }
@@ -123,7 +126,7 @@ class LiveSession(
         _uiState.update { it.copy(isListening = false, isSending = false) }
     }
 
-    private fun saveHistoryRecordIfNeeded(live: LiveTranscript, isCurrentSession: Boolean) {
+    private fun saveHistoryRecordIfNeeded(live: LiveTranscript, isCurrentSession: Boolean, context: String) {
         if (live.source.isBlank() && live.translation.isBlank()) return
         val pair = configRepository.getConfig().selectedLanguagePair
         val record = ConversationRecord(
@@ -134,6 +137,7 @@ class LiveSession(
             targetLanguageName = pair.targetName,
             sourceText = live.source,
             translatedText = live.translation,
+            context = context.ifBlank { null },
         )
         scope.launch {
             historyRepository.addRecord(record)

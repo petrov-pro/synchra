@@ -137,4 +137,22 @@ class ClaudeSummarizerTest {
         assertTrue(result.isFailure)
         assertEquals(0, server.requestCount)
     }
+
+    @Test
+    fun `the recorded context goes to Claude as background`() = runTest {
+        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+
+        summarizer().summarize("Hi", "Привет", "Russian", context = "Follow-up with patient Ravi")
+
+        assertTrue(server.takeRequest().body.readUtf8().contains("Follow-up with patient Ravi"))
+    }
+
+    @Test
+    fun `no context means no context section`() = runTest {
+        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+
+        summarizer().summarize("Hi", "Привет", "Russian")
+
+        assertFalse(server.takeRequest().body.readUtf8().contains("CONTEXT:"))
+    }
 }

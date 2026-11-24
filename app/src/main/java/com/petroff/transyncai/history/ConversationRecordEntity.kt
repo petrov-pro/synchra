@@ -13,4 +13,5 @@ data class ConversationRecordEntity(
     val sourceText: String,
     val translatedText: String,
     val summary: String? = null,
+    val context: String? = null,
 )

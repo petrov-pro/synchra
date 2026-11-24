@@ -266,5 +266,26 @@ class SessionViewModelTest {
         viewModel.stop()
         assertFalse(viewModel.uiState.value.isSending)
     }
-}
 
+    @Test
+    fun `both contexts go to Soniox, the general one first`() {
+        configRepository.setGeneralContext("Cardiology lecture")
+        configRepository.setConversationContext("Follow-up with patient Ravi")
+
+        viewModel.start()
+
+        assertEquals("Cardiology lecture\n\nFollow-up with patient Ravi", speechTranslator.request!!.context)
+    }
+
+    @Test
+    fun `the context is saved with the conversation`() = runTest(dispatcher) {
+        configRepository.setGeneralContext("Cardiology lecture")
+        configRepository.setConversationContext("Follow-up with patient Ravi")
+        viewModel.start()
+
+        speechTranslator.finish("Hi", "Привет")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Cardiology lecture\n\nFollow-up with patient Ravi", historyRepository.addedRecords.single().context)
+    }
+}

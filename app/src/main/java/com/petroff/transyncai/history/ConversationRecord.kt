@@ -14,6 +14,8 @@ data class ConversationRecord(
     val sourceText: String,
     val translatedText: String,
     val summary: String? = null,
+    // General + conversation context given to Soniox while recording; reused for the summary.
+    val context: String? = null,
 )
 
 private val DISPLAY_TIMESTAMP_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM, HH:mm")

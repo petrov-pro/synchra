@@ -41,7 +41,12 @@ class SummaryJobs(
         var last: Result<ConversationSummary> = Result.failure(IllegalStateException("not attempted"))
         repeat(SUMMARY_ATTEMPTS) { attempt ->
             if (attempt > 0) delay(RETRY_DELAY_MS)
-            last = summarizer.summarize(record.sourceText, record.translatedText, record.targetLanguageName)
+            last = summarizer.summarize(
+                record.sourceText,
+                record.translatedText,
+                record.targetLanguageName,
+                record.context.orEmpty(),
+            )
             val kind = (last.exceptionOrNull() as? SummaryException)?.kind
             // Success, or a failure another attempt can't fix (no money, bad key).
             if (last.isSuccess || kind == SummaryException.Kind.OUT_OF_CREDIT || kind == SummaryException.Kind.INVALID_KEY) {

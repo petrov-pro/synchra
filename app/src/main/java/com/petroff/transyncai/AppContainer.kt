@@ -9,6 +9,7 @@ import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.EncryptedPrefsSettingsStore
 import com.petroff.transyncai.history.HistoryRepository
 import com.petroff.transyncai.history.MIGRATION_1_2
+import com.petroff.transyncai.history.MIGRATION_2_3
 import com.petroff.transyncai.history.SummaryJobs
 import com.petroff.transyncai.session.LiveSession
 import com.petroff.transyncai.session.RecordingService
@@ -36,7 +37,7 @@ class AppContainer(private val context: Context) {
         context,
         TransyncDatabase::class.java,
         "transyncai.db",
-    ).addMigrations(MIGRATION_1_2).build()
+    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
     val historyRepository: HistoryRepository = RoomHistoryRepository(database.conversationRecordDao())
 

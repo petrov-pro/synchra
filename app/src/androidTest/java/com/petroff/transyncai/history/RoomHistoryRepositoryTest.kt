@@ -114,5 +114,12 @@ class RoomHistoryRepositoryTest {
         assertEquals(listOf("3"), repository.search("user_id").map { it.id })
         assertEquals(listOf("5"), repository.search("C:\\temp").map { it.id })
     }
+
+    @Test
+    fun contextIsStoredWithTheConversation() = runBlocking {
+        repository.addRecord(record(id = "1").copy(context = "Cardiology lecture"))
+
+        assertEquals("Cardiology lecture", repository.getRecord("1")!!.context)
+    }
 }
 

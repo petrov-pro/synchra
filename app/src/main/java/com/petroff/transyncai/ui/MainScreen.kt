@@ -180,7 +180,7 @@ private fun ContextDialog(
         text = {
             Column {
                 Text(
-                    "Leave empty to use your general context from Settings.",
+                    "Added to your general context from Settings, for this conversation.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 TextField(
