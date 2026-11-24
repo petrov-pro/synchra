@@ -124,7 +124,8 @@ class MainScreenTest {
     }
 
     @Test
-    fun contextButtonIsHiddenInTranscriptionOnlyMode() {
+    fun contextButtonIsShownInTranscriptionOnlyMode() {
+        // Soniox uses the context for recognition too, not only for translation.
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(viewMode = ViewMode.TRANSCRIPTION_ONLY),
@@ -137,7 +138,7 @@ class MainScreenTest {
             )
         }
 
-        composeRule.onNodeWithContentDescription("Context").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Context").assertExists()
     }
 
     @Test

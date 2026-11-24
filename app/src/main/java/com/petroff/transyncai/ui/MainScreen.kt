@@ -87,13 +87,11 @@ fun MainScreen(
                             .padding(horizontal = 4.dp)
                             .testTag("historySummaryDivider"),
                     )
-                    // Hidden when there's no translation panel to provide context for,
-                    // disabled while listening (same rule as the view-mode switch below:
-                    // context only takes effect at the start of a session).
-                    if (uiState.viewMode != ViewMode.TRANSCRIPTION_ONLY) {
-                        IconButton(onClick = { showContextDialog = true }, enabled = !uiState.isListening) {
-                            Icon(Icons.AutoMirrored.Filled.SpeakerNotes, contentDescription = "Context")
-                        }
+                    // Context helps Soniox recognize and translate, in every view mode. Disabled
+                    // while listening (same rule as the view-mode switch below: context only
+                    // takes effect at the start of a session).
+                    IconButton(onClick = { showContextDialog = true }, enabled = !uiState.isListening) {
+                        Icon(Icons.AutoMirrored.Filled.SpeakerNotes, contentDescription = "Context")
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "Settings")
