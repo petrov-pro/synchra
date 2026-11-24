@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** The History list: every saved conversation, newest first, optionally filtered by search. */
+/** The History list: every saved conversation, oldest first by default, optionally filtered by search. */
 class HistoryViewModel(private val historyRepository: HistoryRepository) : ViewModel() {
 
     private val _records = MutableStateFlow<List<ConversationRecord>>(emptyList())
@@ -16,11 +16,22 @@ class HistoryViewModel(private val historyRepository: HistoryRepository) : ViewM
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val _newestFirst = MutableStateFlow(false)
+    val newestFirst: StateFlow<Boolean> = _newestFirst.asStateFlow()
+
     fun refresh() {
         val query = _searchQuery.value
+        val newestFirst = _newestFirst.value
         viewModelScope.launch {
-            _records.value = if (query.isBlank()) historyRepository.getRecords() else historyRepository.search(query)
+            // The repository returns newest first.
+            val newestFirstRecords = if (query.isBlank()) historyRepository.getRecords() else historyRepository.search(query)
+            _records.value = if (newestFirst) newestFirstRecords else newestFirstRecords.reversed()
         }
+    }
+
+    fun toggleOrder() {
+        _newestFirst.value = !_newestFirst.value
+        refresh()
     }
 
     fun setSearchQuery(query: String) {

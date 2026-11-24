@@ -24,8 +24,9 @@ private val DISPLAY_TIMESTAMP_FORMATTER: DateTimeFormatter = DateTimeFormatter.o
  */
 fun ConversationRecord.displayTitle(): String {
     val summarizedTitle = title?.takeIf { summary != null && it.isNotBlank() }
-    if (summarizedTitle != null) return summarizedTitle
-    return Instant.ofEpochMilli(timestamp)
-        .atZone(ZoneId.systemDefault())
-        .format(DISPLAY_TIMESTAMP_FORMATTER)
+    return summarizedTitle ?: displayDateTime()
 }
+
+/** When the conversation was recorded, e.g. "24 Nov, 14:55". */
+fun ConversationRecord.displayDateTime(): String =
+    Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).format(DISPLAY_TIMESTAMP_FORMATTER)

@@ -39,13 +39,30 @@ class HistoryViewModelTest {
     }
 
     @Test
-    fun `refresh loads newest first`() = runTest(dispatcher) {
+    fun `refresh loads oldest first by default`() = runTest(dispatcher) {
         val vm = HistoryViewModel(history)
 
         vm.refresh()
         advanceUntilIdle()
 
+        assertEquals(listOf("1", "2"), vm.records.value.map { it.id })
+        assertEquals(false, vm.newestFirst.value)
+    }
+
+    @Test
+    fun `toggleOrder switches to newest first and back`() = runTest(dispatcher) {
+        val vm = HistoryViewModel(history)
+        vm.refresh()
+        advanceUntilIdle()
+
+        vm.toggleOrder()
+        advanceUntilIdle()
         assertEquals(listOf("2", "1"), vm.records.value.map { it.id })
+        assertEquals(true, vm.newestFirst.value)
+
+        vm.toggleOrder()
+        advanceUntilIdle()
+        assertEquals(listOf("1", "2"), vm.records.value.map { it.id })
     }
 
     @Test
@@ -59,7 +76,7 @@ class HistoryViewModelTest {
 
         vm.setSearchQuery("")
         advanceUntilIdle()
-        assertEquals(listOf("2", "1"), vm.records.value.map { it.id })
+        assertEquals(listOf("1", "2"), vm.records.value.map { it.id })
     }
 
     @Test

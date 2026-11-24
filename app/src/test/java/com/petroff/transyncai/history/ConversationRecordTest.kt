@@ -40,4 +40,11 @@ class ConversationRecordTest {
     fun `displayTitle is the Claude title once summarized`() {
         assertEquals("Встреча", record(title = "Встреча", summary = "Обсудили сроки.").displayTitle())
     }
+
+    @Test
+    fun `displayDateTime is the recording date and time, summarized or not`() {
+        assertEquals(dateName, record(title = null, summary = null).displayDateTime())
+        assertEquals(dateName, record(title = "Встреча", summary = "S").displayDateTime())
+    }
 }
+

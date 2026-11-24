@@ -93,12 +93,15 @@ fun TransyncAiApp(container: AppContainer) {
                     composable("history") {
                         val records by historyViewModel.records.collectAsState()
                         val query by historyViewModel.searchQuery.collectAsState()
+                        val newestFirst by historyViewModel.newestFirst.collectAsState()
                         HistoryScreen(
                             records = records,
                             searchQuery = query,
                             onSearchQueryChange = historyViewModel::setSearchQuery,
                             onRecordClick = { navController.navigateOnce("conversation/$it") },
                             onDeleteRecord = historyViewModel::delete,
+                            newestFirst = newestFirst,
+                            onToggleOrder = historyViewModel::toggleOrder,
                             onBack = { navController.popOnce() },
                         )
                     }
