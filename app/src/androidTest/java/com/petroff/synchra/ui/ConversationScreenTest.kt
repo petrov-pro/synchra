@@ -10,6 +10,9 @@ import com.petroff.synchra.history.ConversationRecord
 import com.petroff.synchra.history.ConversationUiState
 import com.petroff.synchra.history.ConversationView
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -63,6 +66,18 @@ class ConversationScreenTest {
         composeRule.onNodeWithText("Обсудили сроки.").assertExists()
         composeRule.onAllNodesWithText("Встреча")[0].assertExists()
         composeRule.onNodeWithText("We agreed on the deadline.").assertDoesNotExist()
+    }
+
+    @Test
+    fun summaryTitleIsSetApartFromTheSummaryByADivider() {
+        show(ConversationUiState(record = record(summary = "Обсудили сроки."), view = ConversationView.SUMMARY))
+
+        val title = composeRule.onNodeWithTag("summaryTitle").getUnclippedBoundsInRoot()
+        val divider = composeRule.onNodeWithTag("summaryDivider").getUnclippedBoundsInRoot()
+        val body = composeRule.onNodeWithText("Обсудили сроки.").getUnclippedBoundsInRoot()
+
+        assertTrue(title.bottom <= divider.top)
+        assertTrue(divider.bottom <= body.top)
     }
 
     @Test

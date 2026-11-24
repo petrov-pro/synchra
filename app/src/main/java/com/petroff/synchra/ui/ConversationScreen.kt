@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Summarize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.petroff.synchra.history.ConversationUiState
 import com.petroff.synchra.history.ConversationView
+import com.petroff.synchra.history.displayDateTime
 import com.petroff.synchra.history.displayTitle
 import com.petroff.synchra.session.ViewMode
 
@@ -106,12 +108,16 @@ fun ConversationScreen(
                         .copyOnLongPress("Summary", "$title\n\n${record.summary}")
                         .verticalScroll(rememberScrollState()),
                 ) {
-                    Text(title, style = MaterialTheme.typography.headlineSmall)
+                    Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("summaryTitle"))
                     Text(
-                        record.summary,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(top = 12.dp),
+                        record.displayDateTime(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
+                    // Sets the title apart from the summary itself.
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp).testTag("summaryDivider"))
+                    Text(record.summary, style = MaterialTheme.typography.bodyLarge)
                 }
             } else {
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
