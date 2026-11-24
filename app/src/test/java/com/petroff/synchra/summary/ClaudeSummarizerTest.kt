@@ -164,4 +164,16 @@ class ClaudeSummarizerTest {
 
         assertTrue(server.takeRequest().body.readUtf8().contains("never summarize CONTEXT"))
     }
+
+    @Test
+    fun `Claude is told the recorder may not be a speaker, so no one is credited without the transcript saying so`() = runTest {
+        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+
+        summarizer().summarize("The engineers said it was done", "", "Russian", context = "My name is Andrey")
+
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body.contains("may not have said anything"))
+        assertTrue(body.contains("Never attribute a statement, task or decision to the user"))
+        assertTrue(body.contains("CONTEXT (about the user who recorded"))
+    }
 }

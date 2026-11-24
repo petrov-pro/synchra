@@ -63,12 +63,20 @@ class ClaudeSummarizer(
                 .model(MODEL)
                 .maxTokens(2048L)
                 .system(
-                    "You summarize a recorded conversation for the person who recorded it. Write " +
-                        "everything in $targetLanguageName. The title is at most 60 characters, one " +
-                        "line. The summary is a few short paragraphs or bullet points with the key " +
-                        "points, decisions and action items. CONTEXT, if given, is background from " +
-                        "the user to get names and terms right: never summarize CONTEXT or present " +
-                        "it as something said. Reply only with the JSON."
+                    "You summarize a conversation that the user recorded with their phone, for the " +
+                        "user to read later. The user is often a listener in a meeting or call and may " +
+                        "not have said anything. The transcript has no speaker labels, so you usually " +
+                        "cannot tell who said what. Write everything in $targetLanguageName. The title " +
+                        "is at most 60 characters, one line. The summary is a few short paragraphs or " +
+                        "bullet points with the key points, decisions and action items.\n\n" +
+                        "Report only what the transcript says, as neutrally as it says it: \"the " +
+                        "engineers said the work is done\", \"a speaker asked…\", \"it was agreed…\". " +
+                        "Never attribute a statement, task or decision to the user, or to anyone named " +
+                        "in CONTEXT, unless the transcript itself names them as the one who said or " +
+                        "owns it. If it is unclear who owns an action item, say so instead of guessing.\n\n" +
+                        "CONTEXT, if given, is background about the user and their work. Use it only " +
+                        "to spell names and terms right and to understand what the talk is about: " +
+                        "never summarize CONTEXT or present it as something said. Reply only with the JSON."
                 )
                 .thinking(ThinkingConfigDisabled.builder().build())
                 .outputConfig(
@@ -80,7 +88,10 @@ class ClaudeSummarizer(
                 .addUserMessage(
                     buildString {
                         // Helps with names, terms and what the talk is about.
-                        if (context.isNotBlank()) append("CONTEXT (background from the user):\n").append(context).append("\n\n")
+                        if (context.isNotBlank()) {
+                            append("CONTEXT (about the user who recorded; not part of the conversation):\n")
+                            append(context).append("\n\n")
+                        }
                         append("ORIGINAL:\n").append(sourceText)
                         if (translatedText.isNotBlank()) append("\n\nTRANSLATION:\n").append(translatedText)
                     }
