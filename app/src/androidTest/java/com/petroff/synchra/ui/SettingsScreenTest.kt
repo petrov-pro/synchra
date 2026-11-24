@@ -12,7 +12,9 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import com.petroff.synchra.config.Language
 import com.petroff.synchra.config.languageForCode
+import androidx.compose.ui.test.performFirstLinkClick
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -231,5 +233,39 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Save").performScrollTo().performClick()
 
         assertEquals("snx-abc", savedSonioxKey)
+    }
+
+    private fun helpLinkOpens(helpFor: String): String? {
+        var opened: String? = null
+        composeRule.setContent {
+            SettingsScreen(
+                currentSonioxApiKey = null,
+                currentApiKey = null,
+                currentGeneralContext = "",
+                onSaveApiKey = {},
+                onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
+                onBack = {},
+                onOpenLink = { opened = it },
+            )
+        }
+
+        composeRule.onNodeWithContentDescription("Help: $helpFor").performClick()
+        composeRule.onNodeWithText("How to create a key and add funds", substring = true, useUnmergedTree = true).performFirstLinkClick()
+        return opened
+    }
+
+    @Test
+    fun sonioxHelpOpensSetupInstructionsInTheBrowser() {
+        val opened = helpLinkOpens("Soniox API key")
+
+        assertTrue(opened!!.startsWith("https://chatgpt.com/?q=Instructions%20for%20using%20Soniox"))
+    }
+
+    @Test
+    fun anthropicHelpOpensSetupInstructionsInTheBrowser() {
+        val opened = helpLinkOpens("Anthropic API key")
+
+        assertTrue(opened!!.startsWith("https://chatgpt.com/?q=Instructions%20for%20using%20Claude"))
     }
 }

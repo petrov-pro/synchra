@@ -35,6 +35,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import com.petroff.synchra.config.DEFAULT_SOURCE_LANGUAGE
 import com.petroff.synchra.config.DEFAULT_TARGET_LANGUAGE
@@ -62,7 +69,13 @@ fun SettingsScreen(
     onSourceLanguageChange: (Language) -> Unit = {},
     onTargetLanguageChange: (Language) -> Unit = {},
     onSwapLanguages: () -> Unit = {},
+    // Opens a help link; the browser by default.
+    onOpenLink: ((String) -> Unit)? = null,
 ) {
+    // Taken here, not inside the help dialog: a dialog is its own window with its own handler.
+    val uriHandler = LocalUriHandler.current
+    val openLink = onOpenLink ?: { url: String -> uriHandler.openUri(url) }
+
     // Which side's picker is open: true = source, false = target, null = none.
     var pickingSource by remember { mutableStateOf<Boolean?>(null) }
 
@@ -91,7 +104,25 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { helpDialog = null },
             title = { Text(content.title) },
-            text = { Text(content.text) },
+            text = {
+                Text(
+                    buildAnnotatedString {
+                        append(content.text)
+                        content.link?.let { (label, url) ->
+                            append("\n\n")
+                            withLink(
+                                LinkAnnotation.Clickable(
+                                    tag = "help",
+                                    styles = TextLinkStyles(
+                                        SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline),
+                                    ),
+                                    linkInteractionListener = { openLink(url) },
+                                ),
+                            ) { append(label) }
+                        }
+                    },
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { helpDialog = null }) {
                     Text("Got it")
@@ -148,6 +179,7 @@ fun SettingsScreen(
                 field = "Soniox API key",
                 helpText = "Your Soniox API key. Soniox recognizes your speech and translates it " +
                     "live (about \$0.12-0.23 per hour of audio). Required to start.",
+                helpLink = "How to create a key and add funds" to SONIOX_SETUP_URL,
                 onShowHelp = { helpDialog = it },
             ) {
                 TextField(
@@ -164,6 +196,7 @@ fun SettingsScreen(
                 field = "Anthropic API key",
                 helpText = "Your Anthropic (Claude) API key, used for conversation summaries. " +
                     "Live transcription and translation work without it.",
+                helpLink = "How to create a key and add funds" to CLAUDE_SETUP_URL,
                 onShowHelp = { helpDialog = it },
             ) {
                 TextField(
@@ -215,7 +248,12 @@ fun SettingsScreen(
     }
 }
 
-private data class HelpDialogContent(val title: String, val text: String)
+private data class HelpDialogContent(
+    val title: String,
+    val text: String,
+    // Label and address of a page with more help, opened in the browser.
+    val link: Pair<String, String>? = null,
+)
 
 /** A field plus its help icon, laid out consistently across every Settings row. */
 @Composable
@@ -223,14 +261,22 @@ private fun FieldRow(
     field: String,
     helpText: String,
     onShowHelp: (HelpDialogContent) -> Unit,
+    helpLink: Pair<String, String>? = null,
     content: @Composable () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.Top) {
         Column(modifier = Modifier.weight(1f)) {
             content()
         }
-        IconButton(onClick = { onShowHelp(HelpDialogContent(field, helpText)) }) {
+        IconButton(onClick = { onShowHelp(HelpDialogContent(field, helpText, helpLink)) }) {
             Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Help: $field")
         }
     }
 }
+
+// Step-by-step instructions (ready ChatGPT questions) for an account, a key and its balance.
+private const val SONIOX_SETUP_URL =
+    "https://chatgpt.com/?q=Instructions%20for%20using%20Soniox%20(soniox.com)%3A%20how%20to%20create%20an%20API%20key%20and%20add%20funds%20to%20your%20account"
+
+private const val CLAUDE_SETUP_URL =
+    "https://chatgpt.com/?q=Instructions%20for%20using%20Claude%20(claude.com)%3A%20how%20to%20create%20an%20API%20key%20and%20add%20funds%20to%20your%20account"
