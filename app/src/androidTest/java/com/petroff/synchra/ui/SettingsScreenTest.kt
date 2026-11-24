@@ -8,6 +8,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onNodeWithTag
+import com.petroff.synchra.config.Language
+import com.petroff.synchra.config.languageForCode
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -16,6 +20,62 @@ class SettingsScreenTest {
 
     @get:Rule
     val composeRule = createComposeRule()
+
+    private val english = languageForCode("en")!!
+    private val russian = languageForCode("ru")!!
+
+    @Test
+    fun theLanguagePickerSearchesAndPicksTheSpeechLanguage() {
+        var picked: Language? = null
+        composeRule.setContent {
+            SettingsScreen(
+                currentSonioxApiKey = null,
+                currentApiKey = null,
+                currentGeneralContext = "",
+                onSaveApiKey = {},
+                onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
+                onBack = {},
+                sourceLanguage = english,
+                targetLanguage = russian,
+                recentLanguages = listOf(english, russian),
+                onSourceLanguageChange = { picked = it },
+            )
+        }
+
+        composeRule.onNodeWithTag("sourceLanguage").performClick()
+        composeRule.onNodeWithText("Recent").assertExists()
+        composeRule.onNodeWithTag("languageSearch").performTextInput("hind")
+        composeRule.onNodeWithText("Hindi").performClick()
+
+        assertEquals("hi", picked?.code)
+        composeRule.onNodeWithTag("languageSearch").assertDoesNotExist()
+    }
+
+    @Test
+    fun theSwapButtonSwapsLanguages() {
+        var swapped = false
+        composeRule.setContent {
+            SettingsScreen(
+                currentSonioxApiKey = null,
+                currentApiKey = null,
+                currentGeneralContext = "",
+                onSaveApiKey = {},
+                onSaveGeneralContext = {},
+                onSaveSonioxApiKey = {},
+                onBack = {},
+                sourceLanguage = english,
+                targetLanguage = russian,
+                onSwapLanguages = { swapped = true },
+            )
+        }
+
+        composeRule.onNodeWithTag("sourceLanguage").assertTextEquals("English")
+        composeRule.onNodeWithTag("targetLanguage").assertTextEquals("Russian")
+        composeRule.onNodeWithContentDescription("Swap languages").performClick()
+
+        assertEquals(true, swapped)
+    }
 
     @Test
     fun enteringAndSavingApiKeyInvokesCallback() {
@@ -128,6 +188,7 @@ class SettingsScreenTest {
         composeRule.onNodeWithContentDescription("Help: Anthropic API key").assertExists()
         composeRule.onNodeWithContentDescription("Help: Soniox API key").assertExists()
         composeRule.onNodeWithContentDescription("Help: Global context").assertExists()
+        composeRule.onNodeWithContentDescription("Help: Languages").assertExists()
     }
 
     @Test

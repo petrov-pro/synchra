@@ -56,27 +56,8 @@ fun MainScreen(
     onApiKeyRequired: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
     onSummary: () -> Unit = {},
-    recentLanguages: List<Language> = emptyList(),
-    onSourceLanguageChange: (Language) -> Unit = {},
-    onTargetLanguageChange: (Language) -> Unit = {},
-    onSwapLanguages: () -> Unit = {},
 ) {
     var showContextDialog by remember { mutableStateOf(false) }
-    // Which side's picker is open: true = source, false = target, null = none.
-    var pickingSource by remember { mutableStateOf<Boolean?>(null) }
-
-    pickingSource?.let { isSource ->
-        LanguagePickerSheet(
-            title = if (isSource) "Speech language" else "Translate into",
-            selected = if (isSource) sourceLanguage else targetLanguage,
-            recent = recentLanguages,
-            onPick = {
-                if (isSource) onSourceLanguageChange(it) else onTargetLanguageChange(it)
-                pickingSource = null
-            },
-            onDismiss = { pickingSource = null },
-        )
-    }
 
     if (showContextDialog) {
         ContextDialog(
@@ -128,15 +109,8 @@ fun MainScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Languages are fixed when a session starts, so they can't change while listening.
-            LanguageBar(
-                source = sourceLanguage,
-                target = targetLanguage,
-                enabled = !uiState.isListening,
-                onPickSource = { pickingSource = true },
-                onPickTarget = { pickingSource = false },
-                onSwap = onSwapLanguages,
-            )
+            // Chosen in Settings; a recording keeps the languages it started with.
+            Text("${sourceLanguage.name} → ${targetLanguage.name}", style = MaterialTheme.typography.labelLarge)
 
             // Only what is shown: works while recording too. Whether Soniox translates is
             // decided at Start (see LiveSession.start), so the bill doesn't change mid-session.

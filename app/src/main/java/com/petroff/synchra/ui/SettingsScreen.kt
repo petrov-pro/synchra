@@ -36,7 +36,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.petroff.synchra.config.DEFAULT_SOURCE_LANGUAGE
+import com.petroff.synchra.config.DEFAULT_TARGET_LANGUAGE
+import com.petroff.synchra.config.Language
 import com.petroff.synchra.config.MAX_GENERAL_CONTEXT_CHARS
+import com.petroff.synchra.config.languageForCode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +55,30 @@ fun SettingsScreen(
     // Set when the main screen redirected here because no Soniox key was set yet — most
     // callers (opening Settings via the gear icon) leave this false.
     autoFocusApiKey: Boolean = false,
+    // Applied at once, like a switch; a recording keeps the languages it started with.
+    sourceLanguage: Language = languageForCode(DEFAULT_SOURCE_LANGUAGE)!!,
+    targetLanguage: Language = languageForCode(DEFAULT_TARGET_LANGUAGE)!!,
+    recentLanguages: List<Language> = emptyList(),
+    onSourceLanguageChange: (Language) -> Unit = {},
+    onTargetLanguageChange: (Language) -> Unit = {},
+    onSwapLanguages: () -> Unit = {},
 ) {
+    // Which side's picker is open: true = source, false = target, null = none.
+    var pickingSource by remember { mutableStateOf<Boolean?>(null) }
+
+    pickingSource?.let { isSource ->
+        LanguagePickerSheet(
+            title = if (isSource) "Speech language" else "Translate into",
+            selected = if (isSource) sourceLanguage else targetLanguage,
+            recent = recentLanguages,
+            onPick = {
+                if (isSource) onSourceLanguageChange(it) else onTargetLanguageChange(it)
+                pickingSource = null
+            },
+            onDismiss = { pickingSource = null },
+        )
+    }
+
     var sonioxApiKeyField by remember { mutableStateOf(currentSonioxApiKey ?: "") }
     var apiKeyField by remember { mutableStateOf(currentApiKey ?: "") }
     var generalContextField by remember { mutableStateOf(currentGeneralContext) }
@@ -98,6 +125,23 @@ fun SettingsScreen(
                     apiKeyFocusRequester.requestFocus()
                     keyboardController?.show()
                 }
+            }
+
+            FieldRow(
+                field = "Languages",
+                helpText = "The language that is spoken and the one it is translated into. Tap " +
+                    "a language to search all 60; the arrows swap them. A recording already " +
+                    "running keeps its languages.",
+                onShowHelp = { helpDialog = it },
+            ) {
+                LanguageBar(
+                    source = sourceLanguage,
+                    target = targetLanguage,
+                    enabled = true,
+                    onPickSource = { pickingSource = true },
+                    onPickTarget = { pickingSource = false },
+                    onSwap = onSwapLanguages,
+                )
             }
 
             FieldRow(

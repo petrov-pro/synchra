@@ -33,35 +33,7 @@ class MainScreenTest {
     private val russian = languageForCode("ru")!!
 
     @Test
-    fun theLanguagePickerSearchesAndPicksTheSpeechLanguage() {
-        var picked: Language? = null
-        composeRule.setContent {
-            MainScreen(
-                uiState = SessionUiState(),
-                sourceLanguage = english,
-                targetLanguage = russian,
-                recentLanguages = listOf(english, russian),
-                currentConversationContext = "",
-                onToggleListening = {},
-                onViewModeChange = {},
-                onOpenSettings = {},
-                onSaveConversationContext = {},
-                onSourceLanguageChange = { picked = it },
-            )
-        }
-
-        composeRule.onNodeWithTag("sourceLanguage").performClick()
-        composeRule.onNodeWithText("Recent").assertExists()
-        composeRule.onNodeWithTag("languageSearch").performTextInput("hind")
-        composeRule.onNodeWithText("Hindi").performClick()
-
-        assertEquals("hi", picked?.code)
-        composeRule.onNodeWithTag("languageSearch").assertDoesNotExist()
-    }
-
-    @Test
-    fun theSwapButtonSwapsLanguages() {
-        var swapped = false
+    fun theLanguagesAreShownAndChangedInSettings() {
         composeRule.setContent {
             MainScreen(
                 uiState = SessionUiState(),
@@ -72,35 +44,11 @@ class MainScreenTest {
                 onViewModeChange = {},
                 onOpenSettings = {},
                 onSaveConversationContext = {},
-                onSwapLanguages = { swapped = true },
             )
         }
 
-        composeRule.onNodeWithTag("sourceLanguage").assertTextEquals("English")
-        composeRule.onNodeWithTag("targetLanguage").assertTextEquals("Russian")
-        composeRule.onNodeWithContentDescription("Swap languages").performClick()
-
-        assertEquals(true, swapped)
-    }
-
-    @Test
-    fun languagesCannotChangeWhileListening() {
-        composeRule.setContent {
-            MainScreen(
-                uiState = SessionUiState(isListening = true),
-                sourceLanguage = english,
-                targetLanguage = russian,
-                currentConversationContext = "",
-                onToggleListening = {},
-                onViewModeChange = {},
-                onOpenSettings = {},
-                onSaveConversationContext = {},
-            )
-        }
-
-        composeRule.onNodeWithTag("sourceLanguage").assertIsNotEnabled()
-        composeRule.onNodeWithTag("targetLanguage").assertIsNotEnabled()
-        composeRule.onNodeWithContentDescription("Swap languages").assertIsNotEnabled()
+        composeRule.onNodeWithText("English → Russian").assertExists()
+        composeRule.onNodeWithTag("sourceLanguage").assertDoesNotExist()
     }
 
     @Test

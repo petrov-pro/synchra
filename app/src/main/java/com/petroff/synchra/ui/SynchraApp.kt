@@ -76,19 +76,6 @@ fun SynchraApp(container: AppContainer) {
                             uiState = uiState,
                             sourceLanguage = config.sourceLanguage,
                             targetLanguage = config.targetLanguage,
-                            recentLanguages = config.recentLanguages,
-                            onSourceLanguageChange = {
-                                container.configRepository.setSourceLanguage(it.code)
-                                config = container.configRepository.getConfig()
-                            },
-                            onTargetLanguageChange = {
-                                container.configRepository.setTargetLanguage(it.code)
-                                config = container.configRepository.getConfig()
-                            },
-                            onSwapLanguages = {
-                                container.configRepository.swapLanguages()
-                                config = container.configRepository.getConfig()
-                            },
                             currentConversationContext = config.conversationContext,
                             onToggleListening = {
                                 if (uiState.isListening) {
@@ -191,6 +178,21 @@ fun SynchraApp(container: AppContainer) {
                             onSaveGeneralContext = { container.configRepository.setGeneralContext(it) },
                             onBack = { navController.popOnce() },
                             autoFocusApiKey = focusApiKeyOnSettingsOpen,
+                            sourceLanguage = config.sourceLanguage,
+                            targetLanguage = config.targetLanguage,
+                            recentLanguages = config.recentLanguages,
+                            onSourceLanguageChange = {
+                                container.configRepository.setSourceLanguage(it.code)
+                                config = container.configRepository.getConfig()
+                            },
+                            onTargetLanguageChange = {
+                                container.configRepository.setTargetLanguage(it.code)
+                                config = container.configRepository.getConfig()
+                            },
+                            onSwapLanguages = {
+                                container.configRepository.swapLanguages()
+                                config = container.configRepository.getConfig()
+                            },
                         )
                     }
                 }
