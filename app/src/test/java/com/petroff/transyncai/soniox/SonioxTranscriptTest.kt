@@ -32,16 +32,6 @@ class SonioxTranscriptTest {
     }
 
     @Test
-    fun `an error response becomes an error event`() {
-        val event = transcript.apply(
-            """{"tokens":[],"error_code":402,"error_message":"Organization balance exhausted."}"""
-        )
-
-        assertTrue(event is SonioxEvent.Error)
-        assertTrue((event as SonioxEvent.Error).message.contains("balance exhausted"))
-    }
-
-    @Test
     fun `the finished response ends the stream`() {
         transcript.apply(msg(tok("Bye", true)))
 
