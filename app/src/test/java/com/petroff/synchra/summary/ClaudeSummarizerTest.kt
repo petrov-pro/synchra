@@ -154,7 +154,7 @@ class ClaudeSummarizerTest {
         summarizer().summarize("Hi", "Привет", "Russian")
 
         val body = server.takeRequest().body.readUtf8()
-        assertFalse(body.contains("BACKGROUND (about the user"))
+        assertFalse(body.contains("GLOBAL CONTEXT (about the user"))
         assertFalse(body.contains("ABOUT THIS CONVERSATION (from the user)"))
     }
 
@@ -176,7 +176,7 @@ class ClaudeSummarizerTest {
         val body = server.takeRequest().body.readUtf8()
         assertTrue(body.contains("may not have said anything"))
         assertTrue(body.contains("Never attribute a statement, task or decision to the user"))
-        assertTrue(body.contains("BACKGROUND (about the user, their company, team or product; the user recorded this and may not speak in it):\\nMy name is Andrey"))
+        assertTrue(body.contains("GLOBAL CONTEXT (about the user, their company, team or product; the user recorded this and may not speak in it):\\nMy name is Andrey"))
     }
 
     @Test
@@ -190,7 +190,7 @@ class ClaudeSummarizerTest {
         )
 
         val body = server.takeRequest().body.readUtf8()
-        assertTrue(body.contains("BACKGROUND (about the user, their company, team or product; the user recorded this and may not speak in it):\\nMy name is Andrey"))
+        assertTrue(body.contains("GLOBAL CONTEXT (about the user, their company, team or product; the user recorded this and may not speak in it):\\nMy name is Andrey"))
         assertTrue(body.contains("ABOUT THIS CONVERSATION (from the user):\\nSprint planning with John and Maria"))
         assertTrue(body.contains("do not guess which speaker is which participant"))
     }

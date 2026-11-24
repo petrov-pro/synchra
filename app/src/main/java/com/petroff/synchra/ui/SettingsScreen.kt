@@ -140,7 +140,7 @@ fun SettingsScreen(
             // Standing context, sent with every session ahead of the per-conversation one from the
             // Main screen's Context button — see LiveSession.start.
             FieldRow(
-                field = "Background",
+                field = "Global context",
                 helpText = "Goes with every conversation: about you, your company, team, product, " +
                     "its names and terms. It helps Soniox recognize and translate, and Claude " +
                     "write the summary. Claude never treats it as something said: you may only be " +
@@ -151,7 +151,7 @@ fun SettingsScreen(
                 TextField(
                     value = generalContextField,
                     onValueChange = { generalContextField = it.take(MAX_GENERAL_CONTEXT_CHARS) },
-                    label = { Text("Background") },
+                    label = { Text("Global context") },
                     supportingText = { Text("${generalContextField.length} / $MAX_GENERAL_CONTEXT_CHARS") },
                     placeholder = { Text("e.g. I'm Andrey, a backend engineer on the payments team (Go, Kafka)") },
                     minLines = 3,

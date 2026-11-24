@@ -205,7 +205,7 @@ private fun ContextDialog(
             Column {
                 Text(
                     "Topic, participants and terms of this conversation. Sent together with " +
-                        "Background from Settings.",
+                        "the global context from Settings.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 TextField(

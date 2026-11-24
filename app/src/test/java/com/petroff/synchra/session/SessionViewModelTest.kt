@@ -99,7 +99,7 @@ class SessionViewModelTest {
         viewModel.start()
 
         assertEquals(
-            LiveRequest(sourceLang = "en", targetLang = "ru", context = "Background:\nCardiology lecture"),
+            LiveRequest(sourceLang = "en", targetLang = "ru", context = "Global context:\nCardiology lecture"),
             speechTranslator.request,
         )
         assertTrue(viewModel.uiState.value.isListening)
@@ -287,7 +287,7 @@ class SessionViewModelTest {
         viewModel.start()
 
         assertEquals(
-            "Background:\nCardiology lecture\n\nAbout this conversation:\nFollow-up with patient Ravi",
+            "Global context:\nCardiology lecture\n\nAbout this conversation:\nFollow-up with patient Ravi",
             speechTranslator.request!!.context,
         )
     }
