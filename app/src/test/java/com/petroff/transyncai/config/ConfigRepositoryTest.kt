@@ -93,4 +93,15 @@ class ConfigRepositoryTest {
         assertEquals("snx-1", config.sonioxApiKey)
         assertEquals("sk-ant-1", config.apiKey)
     }
+
+    @Test
+    fun `pasted keys lose surrounding spaces and line breaks`() {
+        // A line break in a key used to crash Start (it goes into an HTTP header).
+        repo.setSonioxApiKey("  snx-1\n")
+        repo.setApiKey("\tsk-ant-1 \r\n")
+
+        assertEquals("snx-1", repo.getConfig().sonioxApiKey)
+        assertEquals("sk-ant-1", repo.getConfig().apiKey)
+    }
 }
+

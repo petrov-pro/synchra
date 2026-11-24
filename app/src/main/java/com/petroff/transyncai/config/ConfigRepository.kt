@@ -27,7 +27,7 @@ class DefaultConfigRepository(
     )
 
     override fun setApiKey(key: String) {
-        store.putString(KEY_API_KEY, key)
+        store.putString(KEY_API_KEY, key.trim())
         // The old Kimi key is useless now and shouldn't linger in storage.
         store.putString(KEY_LEGACY_KIMI_API_KEY, "")
     }
@@ -45,7 +45,8 @@ class DefaultConfigRepository(
 
     override fun setConversationContext(context: String) = store.putString(KEY_CONVERSATION_CONTEXT, context)
 
-    override fun setSonioxApiKey(key: String) = store.putString(KEY_SONIOX_API_KEY, key)
+    // Keys go into HTTP headers, where a pasted line break is illegal.
+    override fun setSonioxApiKey(key: String) = store.putString(KEY_SONIOX_API_KEY, key.trim())
 
     private fun readLanguagePairs(): List<LanguagePair> {
         if (!store.contains(KEY_LANGUAGE_PAIRS)) return defaultLanguagePairs

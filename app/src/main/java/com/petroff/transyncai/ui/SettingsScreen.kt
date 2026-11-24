@@ -128,6 +128,7 @@ fun SettingsScreen(
                     onValueChange = { sonioxApiKeyField = it },
                     label = { Text("Soniox API key") },
                     visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth().focusRequester(apiKeyFocusRequester),
                 )
             }
@@ -143,6 +144,7 @@ fun SettingsScreen(
                     onValueChange = { apiKeyField = it },
                     label = { Text("Anthropic API key") },
                     visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
