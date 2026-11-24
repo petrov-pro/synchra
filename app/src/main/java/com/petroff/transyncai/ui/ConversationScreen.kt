@@ -11,6 +11,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.filled.Summarize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,11 +70,14 @@ fun ConversationScreen(
                     }
                 },
                 actions = {
+                    // Same Summary icon as on the main screen; Original switches back to the full texts.
                     if (state.view == ConversationView.SUMMARY) {
-                        TextButton(onClick = onOriginalClick) { Text("Original") }
+                        IconButton(onClick = onOriginalClick) {
+                            Icon(Icons.AutoMirrored.Filled.Article, contentDescription = "Original")
+                        }
                     } else {
-                        TextButton(onClick = onSummaryClick, enabled = !state.isSummarizing && record != null) {
-                            Text("Summary")
+                        IconButton(onClick = onSummaryClick, enabled = !state.isSummarizing && record != null) {
+                            Icon(Icons.Filled.Summarize, contentDescription = "Summary")
                         }
                     }
                 },

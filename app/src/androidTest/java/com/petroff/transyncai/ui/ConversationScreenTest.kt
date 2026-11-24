@@ -3,6 +3,7 @@ package com.petroff.transyncai.ui
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.petroff.transyncai.history.ConversationRecord
@@ -48,7 +49,7 @@ class ConversationScreenTest {
     fun originalViewShowsTextsAndSummaryButton() {
         show(ConversationUiState(record = record(), view = ConversationView.ORIGINAL))
 
-        composeRule.onNodeWithText("Summary").assertExists()
+        composeRule.onNodeWithContentDescription("Summary").assertExists()
         composeRule.onNodeWithText("Both").assertExists()
         composeRule.onNodeWithText("We agreed on the deadline.").assertExists()
         composeRule.onNodeWithText("Мы согласовали срок.").assertExists()
@@ -58,7 +59,7 @@ class ConversationScreenTest {
     fun summaryViewShowsTitleSummaryAndOriginalButton() {
         show(ConversationUiState(record = record(summary = "Обсудили сроки."), view = ConversationView.SUMMARY))
 
-        composeRule.onNodeWithText("Original").assertExists()
+        composeRule.onNodeWithContentDescription("Original").assertExists()
         composeRule.onNodeWithText("Обсудили сроки.").assertExists()
         composeRule.onAllNodesWithText("Встреча")[0].assertExists()
         composeRule.onNodeWithText("We agreed on the deadline.").assertDoesNotExist()
@@ -73,7 +74,7 @@ class ConversationScreenTest {
             onSummaryClick = { summary++ },
             onOriginalClick = { original++ },
         )
-        composeRule.onNodeWithText("Original").performClick()
+        composeRule.onNodeWithContentDescription("Original").performClick()
 
         assertEquals(1, original)
         assertEquals(0, summary)
@@ -84,7 +85,7 @@ class ConversationScreenTest {
         var summary = 0
         show(ConversationUiState(record = record(), view = ConversationView.ORIGINAL), onSummaryClick = { summary++ })
 
-        composeRule.onNodeWithText("Summary").performClick()
+        composeRule.onNodeWithContentDescription("Summary").performClick()
 
         assertEquals(1, summary)
     }
@@ -108,6 +109,23 @@ class ConversationScreenTest {
         show(ConversationUiState(record = record(), isSummarizing = true))
 
         composeRule.onNodeWithText("Making summary…").assertExists()
-        composeRule.onNodeWithText("Summary").assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("Summary").assertIsNotEnabled()
+    }
+
+    @Test
+    fun summaryAndOriginalAreIconsNotText() {
+        show(ConversationUiState(record = record(summary = "S"), view = ConversationView.SUMMARY))
+
+        composeRule.onNodeWithContentDescription("Original").assertExists()
+        composeRule.onNodeWithText("Original").assertDoesNotExist()
+    }
+
+    @Test
+    fun summaryIsAnIconInTheOriginalView() {
+        show(ConversationUiState(record = record(), view = ConversationView.ORIGINAL))
+
+        composeRule.onNodeWithContentDescription("Summary").assertExists()
+        composeRule.onNodeWithText("Summary").assertDoesNotExist()
     }
 }
+
