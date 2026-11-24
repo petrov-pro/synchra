@@ -8,7 +8,7 @@
 
 **Tech Stack:** Kotlin, Jetpack Compose (Material3), Room 2.8.4 (new dependency), KSP 2.3.11 (new plugin, Room's annotation processor), `java.time` for date formatting (no new dependency — available natively at minSdk 26).
 
-**Spec:** `docs/superpowers/specs/2026-08-31-transyncai-conversation-history-design.md`
+**Spec:** `docs/superpowers/specs/2026-08-31-synchra-conversation-history-design.md`
 
 ## Global Constraints
 
@@ -37,13 +37,13 @@
 **Files:**
 - Modify: `build.gradle.kts` (root)
 - Modify: `app/build.gradle.kts`
-- Create: `app/src/main/java/com/petroff/transyncai/history/ConversationRecordEntity.kt`
-- Create: `app/src/main/java/com/petroff/transyncai/history/ConversationRecordDao.kt`
-- Create: `app/src/main/java/com/petroff/transyncai/history/TransyncDatabase.kt`
-- Test: `app/src/androidTest/java/com/petroff/transyncai/history/ConversationRecordDaoTest.kt`
+- Create: `app/src/main/java/com/petroff/synchra/history/ConversationRecordEntity.kt`
+- Create: `app/src/main/java/com/petroff/synchra/history/ConversationRecordDao.kt`
+- Create: `app/src/main/java/com/petroff/synchra/history/SynchraDatabase.kt`
+- Test: `app/src/androidTest/java/com/petroff/synchra/history/ConversationRecordDaoTest.kt`
 
 **Interfaces:**
-- Produces: `ConversationRecordEntity(id: String, timestamp: Long, title: String?, sourceLanguageName: String, targetLanguageName: String, sourceText: String, translatedText: String)`; `ConversationRecordDao` with `suspend fun getAll(): List<ConversationRecordEntity>`, `suspend fun search(query: String): List<ConversationRecordEntity>`, `suspend fun insert(record: ConversationRecordEntity)`, `suspend fun deleteById(id: String)`, `suspend fun updateTitle(id: String, title: String)`; `TransyncDatabase` (abstract, `RoomDatabase`) with `abstract fun conversationRecordDao(): ConversationRecordDao`.
+- Produces: `ConversationRecordEntity(id: String, timestamp: Long, title: String?, sourceLanguageName: String, targetLanguageName: String, sourceText: String, translatedText: String)`; `ConversationRecordDao` with `suspend fun getAll(): List<ConversationRecordEntity>`, `suspend fun search(query: String): List<ConversationRecordEntity>`, `suspend fun insert(record: ConversationRecordEntity)`, `suspend fun deleteById(id: String)`, `suspend fun updateTitle(id: String, title: String)`; `SynchraDatabase` (abstract, `RoomDatabase`) with `abstract fun conversationRecordDao(): ConversationRecordDao`.
 
 - [ ] **Step 1: Add the KSP plugin and Room dependencies to the Gradle build**
 
@@ -92,10 +92,10 @@ this step.
 
 - [ ] **Step 3: Write the failing instrumented test**
 
-Create `app/src/androidTest/java/com/petroff/transyncai/history/ConversationRecordDaoTest.kt`:
+Create `app/src/androidTest/java/com/petroff/synchra/history/ConversationRecordDaoTest.kt`:
 
 ```kotlin
-package com.petroff.transyncai.history
+package com.petroff.synchra.history
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -110,14 +110,14 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ConversationRecordDaoTest {
 
-    private lateinit var database: TransyncDatabase
+    private lateinit var database: SynchraDatabase
     private lateinit var dao: ConversationRecordDao
 
     @Before
     fun setUp() {
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
-            TransyncDatabase::class.java,
+            SynchraDatabase::class.java,
         ).allowMainThreadQueries().build()
         dao = database.conversationRecordDao()
     }
@@ -196,15 +196,15 @@ class ConversationRecordDaoTest {
 - [ ] **Step 4: Run the test, verify it fails to compile**
 
 Run: `./gradlew compileDebugAndroidTestKotlin --console=plain`
-Expected: FAIL — `Unresolved reference` errors for `TransyncDatabase`,
+Expected: FAIL — `Unresolved reference` errors for `SynchraDatabase`,
 `ConversationRecordDao`, `ConversationRecordEntity` (none exist yet).
 
 - [ ] **Step 5: Write the Entity, DAO, and Database**
 
-Create `app/src/main/java/com/petroff/transyncai/history/ConversationRecordEntity.kt`:
+Create `app/src/main/java/com/petroff/synchra/history/ConversationRecordEntity.kt`:
 
 ```kotlin
-package com.petroff.transyncai.history
+package com.petroff.synchra.history
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -221,10 +221,10 @@ data class ConversationRecordEntity(
 )
 ```
 
-Create `app/src/main/java/com/petroff/transyncai/history/ConversationRecordDao.kt`:
+Create `app/src/main/java/com/petroff/synchra/history/ConversationRecordDao.kt`:
 
 ```kotlin
-package com.petroff.transyncai.history
+package com.petroff.synchra.history
 
 import androidx.room.Dao
 import androidx.room.Insert
@@ -256,16 +256,16 @@ interface ConversationRecordDao {
 }
 ```
 
-Create `app/src/main/java/com/petroff/transyncai/history/TransyncDatabase.kt`:
+Create `app/src/main/java/com/petroff/synchra/history/SynchraDatabase.kt`:
 
 ```kotlin
-package com.petroff.transyncai.history
+package com.petroff.synchra.history
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
 
 @Database(entities = [ConversationRecordEntity::class], version = 1, exportSchema = false)
-abstract class TransyncDatabase : RoomDatabase() {
+abstract class SynchraDatabase : RoomDatabase() {
     abstract fun conversationRecordDao(): ConversationRecordDao
 }
 ```
@@ -276,13 +276,13 @@ it would otherwise fail the build or emit a warning.)
 
 - [ ] **Step 6: Run the test, verify it passes**
 
-Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.transyncai.history.ConversationRecordDaoTest --console=plain`
+Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.synchra.history.ConversationRecordDaoTest --console=plain`
 Expected: `BUILD SUCCESSFUL`, 4 tests passed.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add build.gradle.kts app/build.gradle.kts app/src/main/java/com/petroff/transyncai/history/ app/src/androidTest/java/com/petroff/transyncai/history/
+git add build.gradle.kts app/build.gradle.kts app/src/main/java/com/petroff/synchra/history/ app/src/androidTest/java/com/petroff/synchra/history/
 git commit -m "Add Room persistence layer for conversation history"
 ```
 
@@ -291,22 +291,22 @@ git commit -m "Add Room persistence layer for conversation history"
 ### Task 2: Domain model + HistoryRepository + RoomHistoryRepository
 
 **Files:**
-- Create: `app/src/main/java/com/petroff/transyncai/history/ConversationRecord.kt`
-- Create: `app/src/main/java/com/petroff/transyncai/history/HistoryRepository.kt`
-- Create: `app/src/main/java/com/petroff/transyncai/history/RoomHistoryRepository.kt`
-- Test: `app/src/test/java/com/petroff/transyncai/history/ConversationRecordTest.kt`
-- Test: `app/src/androidTest/java/com/petroff/transyncai/history/RoomHistoryRepositoryTest.kt`
+- Create: `app/src/main/java/com/petroff/synchra/history/ConversationRecord.kt`
+- Create: `app/src/main/java/com/petroff/synchra/history/HistoryRepository.kt`
+- Create: `app/src/main/java/com/petroff/synchra/history/RoomHistoryRepository.kt`
+- Test: `app/src/test/java/com/petroff/synchra/history/ConversationRecordTest.kt`
+- Test: `app/src/androidTest/java/com/petroff/synchra/history/RoomHistoryRepositoryTest.kt`
 
 **Interfaces:**
-- Consumes: `ConversationRecordDao`, `ConversationRecordEntity`, `TransyncDatabase` (Task 1).
+- Consumes: `ConversationRecordDao`, `ConversationRecordEntity`, `SynchraDatabase` (Task 1).
 - Produces: `ConversationRecord(id: String, timestamp: Long, title: String?, sourceLanguageName: String, targetLanguageName: String, sourceText: String, translatedText: String)`; `fun ConversationRecord.displayTitle(): String`; `HistoryRepository` interface with `suspend fun getRecords(): List<ConversationRecord>`, `suspend fun search(query: String): List<ConversationRecord>`, `suspend fun addRecord(record: ConversationRecord)`, `suspend fun deleteRecord(id: String)`, `suspend fun setTitle(id: String, title: String)`; `RoomHistoryRepository(dao: ConversationRecordDao) : HistoryRepository`.
 
 - [ ] **Step 1: Write the failing JVM unit test for `displayTitle()`**
 
-Create `app/src/test/java/com/petroff/transyncai/history/ConversationRecordTest.kt`:
+Create `app/src/test/java/com/petroff/synchra/history/ConversationRecordTest.kt`:
 
 ```kotlin
-package com.petroff.transyncai.history
+package com.petroff.synchra.history
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -349,15 +349,15 @@ class ConversationRecordTest {
 
 - [ ] **Step 2: Run the test, verify it fails to compile**
 
-Run: `./gradlew testDebugUnitTest --tests "com.petroff.transyncai.history.ConversationRecordTest" --console=plain`
+Run: `./gradlew testDebugUnitTest --tests "com.petroff.synchra.history.ConversationRecordTest" --console=plain`
 Expected: FAIL — `Unresolved reference: ConversationRecord`.
 
 - [ ] **Step 3: Write `ConversationRecord.kt`**
 
-Create `app/src/main/java/com/petroff/transyncai/history/ConversationRecord.kt`:
+Create `app/src/main/java/com/petroff/synchra/history/ConversationRecord.kt`:
 
 ```kotlin
-package com.petroff.transyncai.history
+package com.petroff.synchra.history
 
 import java.time.Instant
 import java.time.ZoneId
@@ -393,15 +393,15 @@ fun ConversationRecord.displayTitle(): String {
 
 - [ ] **Step 4: Run the test, verify it passes**
 
-Run: `./gradlew testDebugUnitTest --tests "com.petroff.transyncai.history.ConversationRecordTest" --console=plain`
+Run: `./gradlew testDebugUnitTest --tests "com.petroff.synchra.history.ConversationRecordTest" --console=plain`
 Expected: `BUILD SUCCESSFUL`, 3 tests passed.
 
 - [ ] **Step 5: Write the failing instrumented test for `RoomHistoryRepository`**
 
-Create `app/src/androidTest/java/com/petroff/transyncai/history/RoomHistoryRepositoryTest.kt`:
+Create `app/src/androidTest/java/com/petroff/synchra/history/RoomHistoryRepositoryTest.kt`:
 
 ```kotlin
-package com.petroff.transyncai.history
+package com.petroff.synchra.history
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -417,14 +417,14 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RoomHistoryRepositoryTest {
 
-    private lateinit var database: TransyncDatabase
+    private lateinit var database: SynchraDatabase
     private lateinit var repository: HistoryRepository
 
     @Before
     fun setUp() {
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
-            TransyncDatabase::class.java,
+            SynchraDatabase::class.java,
         ).allowMainThreadQueries().build()
         repository = RoomHistoryRepository(database.conversationRecordDao())
     }
@@ -500,10 +500,10 @@ Expected: FAIL — `Unresolved reference` for `HistoryRepository` and `RoomHisto
 
 - [ ] **Step 7: Write `HistoryRepository.kt` and `RoomHistoryRepository.kt`**
 
-Create `app/src/main/java/com/petroff/transyncai/history/HistoryRepository.kt`:
+Create `app/src/main/java/com/petroff/synchra/history/HistoryRepository.kt`:
 
 ```kotlin
-package com.petroff.transyncai.history
+package com.petroff.synchra.history
 
 interface HistoryRepository {
     suspend fun getRecords(): List<ConversationRecord>
@@ -514,10 +514,10 @@ interface HistoryRepository {
 }
 ```
 
-Create `app/src/main/java/com/petroff/transyncai/history/RoomHistoryRepository.kt`:
+Create `app/src/main/java/com/petroff/synchra/history/RoomHistoryRepository.kt`:
 
 ```kotlin
-package com.petroff.transyncai.history
+package com.petroff.synchra.history
 
 class RoomHistoryRepository(private val dao: ConversationRecordDao) : HistoryRepository {
 
@@ -555,13 +555,13 @@ class RoomHistoryRepository(private val dao: ConversationRecordDao) : HistoryRep
 
 - [ ] **Step 8: Run the test, verify it passes**
 
-Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.transyncai.history.RoomHistoryRepositoryTest --console=plain`
+Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.synchra.history.RoomHistoryRepositoryTest --console=plain`
 Expected: `BUILD SUCCESSFUL`, 4 tests passed.
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add app/src/main/java/com/petroff/transyncai/history/ConversationRecord.kt app/src/main/java/com/petroff/transyncai/history/HistoryRepository.kt app/src/main/java/com/petroff/transyncai/history/RoomHistoryRepository.kt app/src/test/java/com/petroff/transyncai/history/ app/src/androidTest/java/com/petroff/transyncai/history/RoomHistoryRepositoryTest.kt
+git add app/src/main/java/com/petroff/synchra/history/ConversationRecord.kt app/src/main/java/com/petroff/synchra/history/HistoryRepository.kt app/src/main/java/com/petroff/synchra/history/RoomHistoryRepository.kt app/src/test/java/com/petroff/synchra/history/ app/src/androidTest/java/com/petroff/synchra/history/RoomHistoryRepositoryTest.kt
 git commit -m "Add ConversationRecord domain model and HistoryRepository"
 ```
 
@@ -570,11 +570,11 @@ git commit -m "Add ConversationRecord domain model and HistoryRepository"
 ### Task 3: FakeHistoryRepository + SessionViewModel wiring + AppContainer wiring
 
 **Files:**
-- Create: `app/src/test/java/com/petroff/transyncai/session/FakeHistoryRepository.kt`
-- Modify: `app/src/main/java/com/petroff/transyncai/session/SessionViewModel.kt`
-- Modify: `app/src/main/java/com/petroff/transyncai/session/SessionViewModelFactory.kt`
-- Modify: `app/src/main/java/com/petroff/transyncai/AppContainer.kt`
-- Modify: `app/src/test/java/com/petroff/transyncai/session/SessionViewModelTest.kt`
+- Create: `app/src/test/java/com/petroff/synchra/session/FakeHistoryRepository.kt`
+- Modify: `app/src/main/java/com/petroff/synchra/session/SessionViewModel.kt`
+- Modify: `app/src/main/java/com/petroff/synchra/session/SessionViewModelFactory.kt`
+- Modify: `app/src/main/java/com/petroff/synchra/AppContainer.kt`
+- Modify: `app/src/test/java/com/petroff/synchra/session/SessionViewModelTest.kt`
 
 **Interfaces:**
 - Consumes: `HistoryRepository`, `ConversationRecord` (Task 2).
@@ -582,13 +582,13 @@ git commit -m "Add ConversationRecord domain model and HistoryRepository"
 
 - [ ] **Step 1: Write `FakeHistoryRepository`**
 
-Create `app/src/test/java/com/petroff/transyncai/session/FakeHistoryRepository.kt`:
+Create `app/src/test/java/com/petroff/synchra/session/FakeHistoryRepository.kt`:
 
 ```kotlin
-package com.petroff.transyncai.session
+package com.petroff.synchra.session
 
-import com.petroff.transyncai.history.ConversationRecord
-import com.petroff.transyncai.history.HistoryRepository
+import com.petroff.synchra.history.ConversationRecord
+import com.petroff.synchra.history.HistoryRepository
 
 class FakeHistoryRepository : HistoryRepository {
     val addedRecords = mutableListOf<ConversationRecord>()
@@ -621,7 +621,7 @@ class FakeHistoryRepository : HistoryRepository {
 
 - [ ] **Step 2: Write the failing `SessionViewModel` tests**
 
-In `app/src/test/java/com/petroff/transyncai/session/SessionViewModelTest.kt`, add the
+In `app/src/test/java/com/petroff/synchra/session/SessionViewModelTest.kt`, add the
 `historyRepository` field and wire it into both `SessionViewModel(...)` construction
 sites, then add two new tests.
 
@@ -685,18 +685,18 @@ Add these two new tests (anywhere after `setUp()`, e.g. right before the
 
 - [ ] **Step 3: Run the tests, verify they fail**
 
-Run: `./gradlew testDebugUnitTest --tests "com.petroff.transyncai.session.SessionViewModelTest" --console=plain`
+Run: `./gradlew testDebugUnitTest --tests "com.petroff.synchra.session.SessionViewModelTest" --console=plain`
 Expected: FAIL to compile — `No value passed for parameter 'historyRepository'`
 (the `SessionViewModel` constructor doesn't have that parameter yet).
 
 - [ ] **Step 4: Wire `historyRepository` into `SessionViewModel`**
 
-In `app/src/main/java/com/petroff/transyncai/session/SessionViewModel.kt`, add these
+In `app/src/main/java/com/petroff/synchra/session/SessionViewModel.kt`, add these
 imports:
 
 ```kotlin
-import com.petroff.transyncai.history.ConversationRecord
-import com.petroff.transyncai.history.HistoryRepository
+import com.petroff.synchra.history.ConversationRecord
+import com.petroff.synchra.history.HistoryRepository
 import java.util.UUID
 ```
 
@@ -742,15 +742,15 @@ Change `stop()`:
 - [ ] **Step 5: Wire `historyRepository` through `SessionViewModelFactory` and `AppContainer`**
 
 Replace the full content of
-`app/src/main/java/com/petroff/transyncai/session/SessionViewModelFactory.kt`:
+`app/src/main/java/com/petroff/synchra/session/SessionViewModelFactory.kt`:
 
 ```kotlin
-package com.petroff.transyncai.session
+package com.petroff.synchra.session
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
-import com.petroff.transyncai.AppContainer
+import com.petroff.synchra.AppContainer
 
 class SessionViewModelFactory(private val container: AppContainer) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
@@ -765,22 +765,22 @@ class SessionViewModelFactory(private val container: AppContainer) : ViewModelPr
 }
 ```
 
-In `app/src/main/java/com/petroff/transyncai/AppContainer.kt`, add these imports:
+In `app/src/main/java/com/petroff/synchra/AppContainer.kt`, add these imports:
 
 ```kotlin
 import androidx.room.Room
-import com.petroff.transyncai.history.HistoryRepository
-import com.petroff.transyncai.history.RoomHistoryRepository
-import com.petroff.transyncai.history.TransyncDatabase
+import com.petroff.synchra.history.HistoryRepository
+import com.petroff.synchra.history.RoomHistoryRepository
+import com.petroff.synchra.history.SynchraDatabase
 ```
 
 And add, right after the `private val httpClient = OkHttpClient()` line:
 
 ```kotlin
-    private val database: TransyncDatabase = Room.databaseBuilder(
+    private val database: SynchraDatabase = Room.databaseBuilder(
         context,
-        TransyncDatabase::class.java,
-        "transyncai.db",
+        SynchraDatabase::class.java,
+        "synchra.db",
     ).build()
 
     val historyRepository: HistoryRepository = RoomHistoryRepository(database.conversationRecordDao())
@@ -788,7 +788,7 @@ And add, right after the `private val httpClient = OkHttpClient()` line:
 
 - [ ] **Step 6: Run the tests, verify they pass**
 
-Run: `./gradlew testDebugUnitTest --tests "com.petroff.transyncai.session.SessionViewModelTest" --console=plain`
+Run: `./gradlew testDebugUnitTest --tests "com.petroff.synchra.session.SessionViewModelTest" --console=plain`
 Expected: `BUILD SUCCESSFUL`, all tests (14 existing + 2 new = 16) pass.
 
 - [ ] **Step 7: Run the full unit test suite to check for regressions**
@@ -799,7 +799,7 @@ Expected: `BUILD SUCCESSFUL`, no failures.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add app/src/main/java/com/petroff/transyncai/session/SessionViewModel.kt app/src/main/java/com/petroff/transyncai/session/SessionViewModelFactory.kt app/src/main/java/com/petroff/transyncai/AppContainer.kt app/src/test/java/com/petroff/transyncai/session/FakeHistoryRepository.kt app/src/test/java/com/petroff/transyncai/session/SessionViewModelTest.kt
+git add app/src/main/java/com/petroff/synchra/session/SessionViewModel.kt app/src/main/java/com/petroff/synchra/session/SessionViewModelFactory.kt app/src/main/java/com/petroff/synchra/AppContainer.kt app/src/test/java/com/petroff/synchra/session/FakeHistoryRepository.kt app/src/test/java/com/petroff/synchra/session/SessionViewModelTest.kt
 git commit -m "Save a history record when a session stops"
 ```
 
@@ -808,8 +808,8 @@ git commit -m "Save a history record when a session stops"
 ### Task 4: HistoryScreen (list + search + delete confirm)
 
 **Files:**
-- Create: `app/src/main/java/com/petroff/transyncai/ui/HistoryScreen.kt`
-- Test: `app/src/androidTest/java/com/petroff/transyncai/ui/HistoryScreenTest.kt`
+- Create: `app/src/main/java/com/petroff/synchra/ui/HistoryScreen.kt`
+- Test: `app/src/androidTest/java/com/petroff/synchra/ui/HistoryScreenTest.kt`
 
 **Interfaces:**
 - Consumes: `ConversationRecord`, `displayTitle()` (Task 2).
@@ -817,21 +817,21 @@ git commit -m "Save a history record when a session stops"
 
 This is a purely presentational screen — it does not call `HistoryRepository` itself
 (matching how `MainScreen`/`SettingsScreen` never call a repository directly; wiring
-happens in `TransyncAiApp`, Task 6).
+happens in `SynchraApp`, Task 6).
 
 - [ ] **Step 1: Write the failing test**
 
-Create `app/src/androidTest/java/com/petroff/transyncai/ui/HistoryScreenTest.kt`:
+Create `app/src/androidTest/java/com/petroff/synchra/ui/HistoryScreenTest.kt`:
 
 ```kotlin
-package com.petroff.transyncai.ui
+package com.petroff.synchra.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import com.petroff.transyncai.history.ConversationRecord
+import com.petroff.synchra.history.ConversationRecord
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -936,10 +936,10 @@ Expected: FAIL — `Unresolved reference: HistoryScreen`.
 
 - [ ] **Step 3: Write `HistoryScreen.kt`**
 
-Create `app/src/main/java/com/petroff/transyncai/ui/HistoryScreen.kt`:
+Create `app/src/main/java/com/petroff/synchra/ui/HistoryScreen.kt`:
 
 ```kotlin
-package com.petroff.transyncai.ui
+package com.petroff.synchra.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -971,8 +971,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.petroff.transyncai.history.ConversationRecord
-import com.petroff.transyncai.history.displayTitle
+import com.petroff.synchra.history.ConversationRecord
+import com.petroff.synchra.history.displayTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1069,13 +1069,13 @@ fun HistoryScreen(
 
 - [ ] **Step 4: Run the test, verify it passes**
 
-Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.transyncai.ui.HistoryScreenTest --console=plain`
+Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.synchra.ui.HistoryScreenTest --console=plain`
 Expected: `BUILD SUCCESSFUL`, 4 tests passed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/src/main/java/com/petroff/transyncai/ui/HistoryScreen.kt app/src/androidTest/java/com/petroff/transyncai/ui/HistoryScreenTest.kt
+git add app/src/main/java/com/petroff/synchra/ui/HistoryScreen.kt app/src/androidTest/java/com/petroff/synchra/ui/HistoryScreenTest.kt
 git commit -m "Add HistoryScreen (list, search, delete with confirmation)"
 ```
 
@@ -1084,8 +1084,8 @@ git commit -m "Add HistoryScreen (list, search, delete with confirmation)"
 ### Task 5: HistoryDetailScreen (view full conversation + editable title)
 
 **Files:**
-- Create: `app/src/main/java/com/petroff/transyncai/ui/HistoryDetailScreen.kt`
-- Test: `app/src/androidTest/java/com/petroff/transyncai/ui/HistoryDetailScreenTest.kt`
+- Create: `app/src/main/java/com/petroff/synchra/ui/HistoryDetailScreen.kt`
+- Test: `app/src/androidTest/java/com/petroff/synchra/ui/HistoryDetailScreenTest.kt`
 
 **Interfaces:**
 - Consumes: `ConversationRecord`, `displayTitle()` (Task 2).
@@ -1093,10 +1093,10 @@ git commit -m "Add HistoryScreen (list, search, delete with confirmation)"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `app/src/androidTest/java/com/petroff/transyncai/ui/HistoryDetailScreenTest.kt`:
+Create `app/src/androidTest/java/com/petroff/synchra/ui/HistoryDetailScreenTest.kt`:
 
 ```kotlin
-package com.petroff.transyncai.ui
+package com.petroff.synchra.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -1104,7 +1104,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
-import com.petroff.transyncai.history.ConversationRecord
+import com.petroff.synchra.history.ConversationRecord
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -1175,10 +1175,10 @@ Expected: FAIL — `Unresolved reference: HistoryDetailScreen`.
 
 - [ ] **Step 3: Write `HistoryDetailScreen.kt`**
 
-Create `app/src/main/java/com/petroff/transyncai/ui/HistoryDetailScreen.kt`:
+Create `app/src/main/java/com/petroff/synchra/ui/HistoryDetailScreen.kt`:
 
 ```kotlin
-package com.petroff.transyncai.ui
+package com.petroff.synchra.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -1207,8 +1207,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.petroff.transyncai.history.ConversationRecord
-import com.petroff.transyncai.history.displayTitle
+import com.petroff.synchra.history.ConversationRecord
+import com.petroff.synchra.history.displayTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1289,13 +1289,13 @@ fun HistoryDetailScreen(
 
 - [ ] **Step 4: Run the test, verify it passes**
 
-Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.transyncai.ui.HistoryDetailScreenTest --console=plain`
+Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.synchra.ui.HistoryDetailScreenTest --console=plain`
 Expected: `BUILD SUCCESSFUL`, 3 tests passed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/src/main/java/com/petroff/transyncai/ui/HistoryDetailScreen.kt app/src/androidTest/java/com/petroff/transyncai/ui/HistoryDetailScreenTest.kt
+git add app/src/main/java/com/petroff/synchra/ui/HistoryDetailScreen.kt app/src/androidTest/java/com/petroff/synchra/ui/HistoryDetailScreenTest.kt
 git commit -m "Add HistoryDetailScreen (full conversation view + editable title)"
 ```
 
@@ -1304,9 +1304,9 @@ git commit -m "Add HistoryDetailScreen (full conversation view + editable title)
 ### Task 6: Navigation + History icon wiring
 
 **Files:**
-- Modify: `app/src/main/java/com/petroff/transyncai/ui/MainScreen.kt`
-- Modify: `app/src/main/java/com/petroff/transyncai/ui/TransyncAiApp.kt`
-- Modify: `app/src/androidTest/java/com/petroff/transyncai/ui/MainScreenTest.kt`
+- Modify: `app/src/main/java/com/petroff/synchra/ui/MainScreen.kt`
+- Modify: `app/src/main/java/com/petroff/synchra/ui/SynchraApp.kt`
+- Modify: `app/src/androidTest/java/com/petroff/synchra/ui/MainScreenTest.kt`
 
 **Interfaces:**
 - Consumes: `HistoryScreen` (Task 4), `HistoryDetailScreen` (Task 5), `HistoryRepository`/`ConversationRecord` (Task 2), `container.historyRepository` (Task 3).
@@ -1314,12 +1314,12 @@ git commit -m "Add HistoryDetailScreen (full conversation view + editable title)
 
 - [ ] **Step 1: Write the failing test**
 
-In `app/src/main/java/com/petroff/transyncai/ui/MainScreenTest.kt`, add
+In `app/src/main/java/com/petroff/synchra/ui/MainScreenTest.kt`, add
 `onOpenHistory = {}` to every existing `MainScreen(...)` call (all 12), and add one new
 test. Replace the full file content:
 
 ```kotlin
-package com.petroff.transyncai.ui
+package com.petroff.synchra.ui
 
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -1329,9 +1329,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
-import com.petroff.transyncai.config.DEFAULT_LANGUAGE_PAIRS
-import com.petroff.transyncai.session.SessionUiState
-import com.petroff.transyncai.session.ViewMode
+import com.petroff.synchra.config.DEFAULT_LANGUAGE_PAIRS
+import com.petroff.synchra.session.SessionUiState
+import com.petroff.synchra.session.ViewMode
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -1625,7 +1625,7 @@ Expected: FAIL — `No parameter with name 'onOpenHistory' found` (repeated acro
 
 - [ ] **Step 3: Add the History icon to `MainScreen`**
 
-In `app/src/main/java/com/petroff/transyncai/ui/MainScreen.kt`, add this import next to
+In `app/src/main/java/com/petroff/synchra/ui/MainScreen.kt`, add this import next to
 the other icon imports:
 
 ```kotlin
@@ -1673,16 +1673,16 @@ Settings icon:
 
 - [ ] **Step 4: Run the `MainScreenTest` test, verify it passes**
 
-Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.transyncai.ui.MainScreenTest --console=plain`
+Run: `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.petroff.synchra.ui.MainScreenTest --console=plain`
 Expected: `BUILD SUCCESSFUL`, 13 tests passed.
 
-- [ ] **Step 5: Wire navigation and repository calls into `TransyncAiApp`**
+- [ ] **Step 5: Wire navigation and repository calls into `SynchraApp`**
 
 Replace the full content of
-`app/src/main/java/com/petroff/transyncai/ui/TransyncAiApp.kt`:
+`app/src/main/java/com/petroff/synchra/ui/SynchraApp.kt`:
 
 ```kotlin
-package com.petroff.transyncai.ui
+package com.petroff.synchra.ui
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -1701,14 +1701,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.petroff.transyncai.AppContainer
-import com.petroff.transyncai.history.ConversationRecord
-import com.petroff.transyncai.session.SessionViewModel
-import com.petroff.transyncai.session.SessionViewModelFactory
+import com.petroff.synchra.AppContainer
+import com.petroff.synchra.history.ConversationRecord
+import com.petroff.synchra.session.SessionViewModel
+import com.petroff.synchra.session.SessionViewModelFactory
 import kotlinx.coroutines.launch
 
 @Composable
-fun TransyncAiApp(container: AppContainer) {
+fun SynchraApp(container: AppContainer) {
     MaterialTheme {
         Surface {
             RequiresRecordAudioPermission {
@@ -1856,6 +1856,6 @@ Expected: `BUILD SUCCESSFUL`, no failures.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add app/src/main/java/com/petroff/transyncai/ui/MainScreen.kt app/src/main/java/com/petroff/transyncai/ui/TransyncAiApp.kt app/src/androidTest/java/com/petroff/transyncai/ui/MainScreenTest.kt
+git add app/src/main/java/com/petroff/synchra/ui/MainScreen.kt app/src/main/java/com/petroff/synchra/ui/SynchraApp.kt app/src/androidTest/java/com/petroff/synchra/ui/MainScreenTest.kt
 git commit -m "Wire conversation history navigation and repository into the app"
 ```

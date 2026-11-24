@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TransyncAI"
+rootProject.name = "Synchra"
 include(":app")

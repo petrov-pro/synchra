@@ -1,0 +1,111 @@
+package com.petroff.synchra.history
+
+import com.petroff.synchra.session.FakeHistoryRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class HistoryViewModelTest {
+
+    private val dispatcher = StandardTestDispatcher()
+    private lateinit var history: FakeHistoryRepository
+
+    private fun record(id: String, text: String) = ConversationRecord(
+        id = id, timestamp = id.toLong(), title = null, sourceLanguageName = "English",
+        targetLanguageName = "Russian", sourceText = text, translatedText = "",
+    )
+
+    @Before
+    fun setUp() = runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        history = FakeHistoryRepository()
+        // FakeHistoryRepository keeps the newest added first, like the real one.
+        history.addRecord(record("1", "about the invoice"))
+        history.addRecord(record("2", "about the weather"))
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `refresh loads oldest first by default`() = runTest(dispatcher) {
+        val vm = HistoryViewModel(history)
+
+        vm.refresh()
+        advanceUntilIdle()
+
+        assertEquals(listOf("1", "2"), vm.records.value.map { it.id })
+        assertEquals(false, vm.newestFirst.value)
+    }
+
+    @Test
+    fun `toggleOrder switches to newest first and back`() = runTest(dispatcher) {
+        val vm = HistoryViewModel(history)
+        vm.refresh()
+        advanceUntilIdle()
+
+        vm.toggleOrder()
+        advanceUntilIdle()
+        assertEquals(listOf("2", "1"), vm.records.value.map { it.id })
+        assertEquals(true, vm.newestFirst.value)
+
+        vm.toggleOrder()
+        advanceUntilIdle()
+        assertEquals(listOf("1", "2"), vm.records.value.map { it.id })
+    }
+
+    @Test
+    fun `search filters and blank search shows all`() = runTest(dispatcher) {
+        val vm = HistoryViewModel(history)
+
+        vm.setSearchQuery("invoice")
+        advanceUntilIdle()
+        assertEquals(listOf("1"), vm.records.value.map { it.id })
+        assertEquals("invoice", vm.searchQuery.value)
+
+        vm.setSearchQuery("")
+        advanceUntilIdle()
+        assertEquals(listOf("1", "2"), vm.records.value.map { it.id })
+    }
+
+    @Test
+    fun `delete removes the record`() = runTest(dispatcher) {
+        val vm = HistoryViewModel(history)
+
+        vm.delete("1")
+        advanceUntilIdle()
+
+        assertEquals(listOf("2"), vm.records.value.map { it.id })
+    }
+
+    @Test
+    fun `typing fast shows results for the last query, not a slower earlier one`() = runTest(dispatcher) {
+        // Shorter queries match more and take longer, like a real database.
+        val slowForShortQueries = object : HistoryRepository by history {
+            override suspend fun search(query: String): List<ConversationRecord> {
+                delay(1_000L / query.length)
+                return history.search(query)
+            }
+        }
+        val vm = HistoryViewModel(slowForShortQueries)
+
+        vm.setSearchQuery("a")
+        vm.setSearchQuery("about the w")
+        advanceUntilIdle()
+
+        assertEquals(listOf("2"), vm.records.value.map { it.id })
+    }
+}
+

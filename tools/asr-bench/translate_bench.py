@@ -6,7 +6,7 @@ app's exact prompt (KimiTranslationClient.kt). An optional blind judge (Claude O
 A/B order randomized, model names hidden) scores each pair.
 
 Keys: KIMI_API_KEY and ANTHROPIC_API_KEY from the environment, or from
-~/.config/transync-bench.env (KEY=value lines) so they never have to be pasted anywhere.
+~/.config/synchra-bench.env (KEY=value lines) so they never have to be pasted anywhere.
 
 Usage: translate_bench.py [--limit N] [--judge]
 """
@@ -24,7 +24,7 @@ import anthropic
 import httpx
 
 HERE = Path(__file__).parent
-ENV_FILE = Path.home() / ".config" / "transync-bench.env"
+ENV_FILE = Path.home() / ".config" / "synchra-bench.env"
 KIMI_URL = "https://api.moonshot.ai/v1/chat/completions"
 
 # Must match KimiTranslationClient.kt

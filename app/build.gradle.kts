@@ -12,11 +12,11 @@ val localProps = Properties().apply {
 }
 
 android {
-    namespace = "com.petroff.transyncai"
+    namespace = "com.petroff.synchra"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.petroff.transyncai"
+        applicationId = "com.petroff.synchra"
         minSdk = 26
         targetSdk = 37
         versionCode = 1
@@ -25,7 +25,7 @@ android {
 
         buildConfigField(
             "String", "DEFAULT_API_BASE_URL",
-            "\"${localProps.getProperty("transync.apiBaseUrl", "https://api.anthropic.com")}\""
+            "\"${localProps.getProperty("synchra.apiBaseUrl", "https://api.anthropic.com")}\""
         )
     }
 
