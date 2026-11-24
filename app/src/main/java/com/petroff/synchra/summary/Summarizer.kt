@@ -22,7 +22,9 @@ interface Summarizer {
         sourceText: String,
         translatedText: String,
         targetLanguageName: String,
-        // Background the user gave for this conversation (names, topic, terms); may be blank.
-        context: String = "",
+        // About the person who recorded (Settings); may be blank. They may not speak at all.
+        userContext: String = "",
+        // About this conversation: topic, participants, terms (main screen); may be blank.
+        conversationContext: String = "",
     ): Result<ConversationSummary>
 }

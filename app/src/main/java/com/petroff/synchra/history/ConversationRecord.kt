@@ -14,8 +14,11 @@ data class ConversationRecord(
     val sourceText: String,
     val translatedText: String,
     val summary: String? = null,
-    // General + conversation context given to Soniox while recording; reused for the summary.
+    // The conversation's own context (main screen) at recording time, kept for the summary.
+    // Records from before v4 hold the general and conversation contexts joined here.
     val context: String? = null,
+    // The general context (Settings: about the user) at recording time, kept for the summary.
+    val userContext: String? = null,
 )
 
 private val DISPLAY_TIMESTAMP_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM, HH:mm")

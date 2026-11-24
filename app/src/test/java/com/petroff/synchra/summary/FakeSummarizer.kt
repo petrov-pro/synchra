@@ -6,16 +6,19 @@ import kotlinx.coroutines.CompletableDeferred
 class FakeSummarizer(private val results: MutableList<Result<ConversationSummary>>) : Summarizer {
     var calls = 0
     var lastContext: String? = null
+    var lastUserContext: String? = null
     var gate: CompletableDeferred<Unit>? = null
 
     override suspend fun summarize(
         sourceText: String,
         translatedText: String,
         targetLanguageName: String,
-        context: String,
+        userContext: String,
+        conversationContext: String,
     ): Result<ConversationSummary> {
         calls++
-        lastContext = context
+        lastUserContext = userContext
+        lastContext = conversationContext
         gate?.await()
         return results.removeAt(0)
     }

@@ -9,6 +9,7 @@ import com.petroff.synchra.config.EncryptedPrefsSettingsStore
 import com.petroff.synchra.history.HistoryRepository
 import com.petroff.synchra.history.MIGRATION_1_2
 import com.petroff.synchra.history.MIGRATION_2_3
+import com.petroff.synchra.history.MIGRATION_3_4
 import com.petroff.synchra.history.SummaryJobs
 import com.petroff.synchra.session.LiveSession
 import com.petroff.synchra.session.RecordingService
@@ -36,7 +37,7 @@ class AppContainer(private val context: Context) {
         context,
         SynchraDatabase::class.java,
         "synchra.db",
-    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
 
     val historyRepository: HistoryRepository = RoomHistoryRepository(database.conversationRecordDao())
 

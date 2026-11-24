@@ -50,7 +50,8 @@ class ClaudeSummarizer(
         sourceText: String,
         translatedText: String,
         targetLanguageName: String,
-        context: String,
+        userContext: String,
+        conversationContext: String,
     ): Result<ConversationSummary> = withContext(Dispatchers.IO) {
         val apiKey = apiKeyProvider()
         if (apiKey.isNullOrBlank()) {
@@ -72,11 +73,16 @@ class ClaudeSummarizer(
                         "Report only what the transcript says, as neutrally as it says it: \"the " +
                         "engineers said the work is done\", \"a speaker asked…\", \"it was agreed…\". " +
                         "Never attribute a statement, task or decision to the user, or to anyone named " +
-                        "in CONTEXT, unless the transcript itself names them as the one who said or " +
-                        "owns it. If it is unclear who owns an action item, say so instead of guessing.\n\n" +
-                        "CONTEXT, if given, is background about the user and their work. Use it only " +
-                        "to spell names and terms right and to understand what the talk is about: " +
-                        "never summarize CONTEXT or present it as something said. Reply only with the JSON."
+                        "in the sections below, unless the transcript itself names them as the one who " +
+                        "said or owns it. If it is unclear who owns an action item, say so instead of " +
+                        "guessing.\n\n" +
+                        "The user may add two background sections. ABOUT THE USER describes the person " +
+                        "who recorded and their work. ABOUT THIS CONVERSATION describes this meeting: " +
+                        "topic, participants, terms; its participants are the likely speakers, but do " +
+                        "not guess which speaker is which participant unless the transcript makes it " +
+                        "clear. Use both sections only to understand the topic and to spell names and " +
+                        "terms right: never summarize them or present them as something said. Reply " +
+                        "only with the JSON."
                 )
                 .thinking(ThinkingConfigDisabled.builder().build())
                 .outputConfig(
@@ -88,9 +94,13 @@ class ClaudeSummarizer(
                 .addUserMessage(
                     buildString {
                         // Helps with names, terms and what the talk is about.
-                        if (context.isNotBlank()) {
-                            append("CONTEXT (about the user who recorded; not part of the conversation):\n")
-                            append(context).append("\n\n")
+                        if (userContext.isNotBlank()) {
+                            append("ABOUT THE USER (who recorded; may not speak in the conversation):\n")
+                            append(userContext).append("\n\n")
+                        }
+                        if (conversationContext.isNotBlank()) {
+                            append("ABOUT THIS CONVERSATION (from the user):\n")
+                            append(conversationContext).append("\n\n")
                         }
                         append("ORIGINAL:\n").append(sourceText)
                         if (translatedText.isNotBlank()) append("\n\nTRANSLATION:\n").append(translatedText)

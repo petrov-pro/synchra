@@ -270,13 +270,14 @@ class ConversationViewModelTest {
 
     @Test
     fun `the summary uses the context recorded with the conversation`() = runTest(dispatcher) {
-        history.addRecord(record().copy(context = "Cardiology lecture"))
+        history.addRecord(record().copy(userContext = "I'm a cardiologist", context = "Cardiology lecture"))
         val summarizer = FakeSummarizer(mutableListOf(FakeSummarizer.ok()))
         val vm = viewModel(summarizer)
 
         vm.onSummaryClick()
         advanceUntilIdle()
 
+        assertEquals("I'm a cardiologist", summarizer.lastUserContext)
         assertEquals("Cardiology lecture", summarizer.lastContext)
     }
 }

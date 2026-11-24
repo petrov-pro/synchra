@@ -45,6 +45,7 @@ class SummaryJobs(
                 record.sourceText,
                 record.translatedText,
                 record.targetLanguageName,
+                record.userContext.orEmpty(),
                 record.context.orEmpty(),
             )
             val kind = (last.exceptionOrNull() as? SummaryException)?.kind

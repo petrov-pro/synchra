@@ -9,6 +9,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.runtime.getValue
@@ -448,7 +450,7 @@ class MainScreenTest {
         }
 
         composeRule.onNodeWithContentDescription("Context").performClick()
-        composeRule.onNodeWithText("Conversation context", useUnmergedTree = true)
+        composeRule.onAllNodesWithText("About this conversation", useUnmergedTree = true).onFirst().assertExists()
         composeRule.onAllNodes(hasSetTextAction())[0].performTextInput("x".repeat(2_100))
 
         composeRule.onNodeWithText("2000 / 2000").assertExists()

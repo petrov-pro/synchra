@@ -142,7 +142,7 @@ class ClaudeSummarizerTest {
     fun `the recorded context goes to Claude as background`() = runTest {
         server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
 
-        summarizer().summarize("Hi", "Привет", "Russian", context = "Follow-up with patient Ravi")
+        summarizer().summarize("Hi", "Привет", "Russian", conversationContext = "Follow-up with patient Ravi")
 
         assertTrue(server.takeRequest().body.readUtf8().contains("Follow-up with patient Ravi"))
     }
@@ -153,27 +153,45 @@ class ClaudeSummarizerTest {
 
         summarizer().summarize("Hi", "Привет", "Russian")
 
-        assertFalse(server.takeRequest().body.readUtf8().contains("CONTEXT ("))
+        val body = server.takeRequest().body.readUtf8()
+        assertFalse(body.contains("ABOUT THE USER (who recorded"))
+        assertFalse(body.contains("ABOUT THIS CONVERSATION (from the user)"))
     }
 
     @Test
     fun `Claude is told the context is background, not part of the conversation`() = runTest {
         server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
 
-        summarizer().summarize("Hi", "Привет", "Russian", context = "drugs: metoprolol")
+        summarizer().summarize("Hi", "Привет", "Russian", conversationContext = "drugs: metoprolol")
 
-        assertTrue(server.takeRequest().body.readUtf8().contains("never summarize CONTEXT"))
+        assertTrue(server.takeRequest().body.readUtf8().contains("never summarize them or present them as something said"))
     }
 
     @Test
     fun `Claude is told the recorder may not be a speaker, so no one is credited without the transcript saying so`() = runTest {
         server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
 
-        summarizer().summarize("The engineers said it was done", "", "Russian", context = "My name is Andrey")
+        summarizer().summarize("The engineers said it was done", "", "Russian", userContext = "My name is Andrey")
 
         val body = server.takeRequest().body.readUtf8()
         assertTrue(body.contains("may not have said anything"))
         assertTrue(body.contains("Never attribute a statement, task or decision to the user"))
-        assertTrue(body.contains("CONTEXT (about the user who recorded"))
+        assertTrue(body.contains("ABOUT THE USER (who recorded; may not speak in the conversation):\\nMy name is Andrey"))
+    }
+
+    @Test
+    fun `the user's background and the conversation's context are separate sections`() = runTest {
+        server.enqueue(claudeAnswer("""{"title":"T","summary":"S"}"""))
+
+        summarizer().summarize(
+            "Let's plan the sprint", "", "Russian",
+            userContext = "My name is Andrey",
+            conversationContext = "Sprint planning with John and Maria",
+        )
+
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body.contains("ABOUT THE USER (who recorded; may not speak in the conversation):\\nMy name is Andrey"))
+        assertTrue(body.contains("ABOUT THIS CONVERSATION (from the user):\\nSprint planning with John and Maria"))
+        assertTrue(body.contains("do not guess which speaker is which participant"))
     }
 }

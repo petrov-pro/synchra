@@ -53,7 +53,7 @@ class SettingsScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("General context").performTextInput("Discussing a billing support case")
+        composeRule.onNodeWithText("About you").performTextInput("Discussing a billing support case")
         composeRule.onNodeWithText("Save").performClick()
 
         assertEquals("Discussing a billing support case", savedContext)
@@ -127,7 +127,7 @@ class SettingsScreenTest {
 
         composeRule.onNodeWithContentDescription("Help: Anthropic API key").assertExists()
         composeRule.onNodeWithContentDescription("Help: Soniox API key").assertExists()
-        composeRule.onNodeWithContentDescription("Help: General context").assertExists()
+        composeRule.onNodeWithContentDescription("Help: About you").assertExists()
     }
 
     @Test

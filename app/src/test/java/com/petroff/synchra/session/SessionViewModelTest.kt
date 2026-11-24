@@ -98,7 +98,10 @@ class SessionViewModelTest {
 
         viewModel.start()
 
-        assertEquals(LiveRequest(sourceLang = "en", targetLang = "ru", context = "Cardiology lecture"), speechTranslator.request)
+        assertEquals(
+            LiveRequest(sourceLang = "en", targetLang = "ru", context = "About the person recording:\nCardiology lecture"),
+            speechTranslator.request,
+        )
         assertTrue(viewModel.uiState.value.isListening)
     }
 
@@ -283,7 +286,10 @@ class SessionViewModelTest {
 
         viewModel.start()
 
-        assertEquals("Cardiology lecture\n\nFollow-up with patient Ravi", speechTranslator.request!!.context)
+        assertEquals(
+            "About the person recording:\nCardiology lecture\n\nAbout this conversation:\nFollow-up with patient Ravi",
+            speechTranslator.request!!.context,
+        )
     }
 
     @Test
@@ -295,7 +301,9 @@ class SessionViewModelTest {
         speechTranslator.finish("Hi", "Привет")
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals("Cardiology lecture\n\nFollow-up with patient Ravi", historyRepository.addedRecords.single().context)
+        val record = historyRepository.addedRecords.single()
+        assertEquals("Cardiology lecture", record.userContext)
+        assertEquals("Follow-up with patient Ravi", record.context)
     }
 
     @Test

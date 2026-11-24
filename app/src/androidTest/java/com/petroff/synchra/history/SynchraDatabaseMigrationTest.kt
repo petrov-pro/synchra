@@ -34,7 +34,7 @@ class SynchraDatabaseMigrationTest {
         }
 
         val database = Room.databaseBuilder(context, SynchraDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
         try {
             val record = runBlocking { database.conversationRecordDao().getAll() }.single()
@@ -68,7 +68,7 @@ class SynchraDatabaseMigrationTest {
         }
 
         val database = Room.databaseBuilder(context, SynchraDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
         try {
             val record = runBlocking { database.conversationRecordDao().getAll() }.single()
@@ -80,5 +80,36 @@ class SynchraDatabaseMigrationTest {
             context.deleteDatabase(name)
         }
     }
-}
 
+    @Test
+    fun upgradingAVersion3DatabaseKeepsTheOldJoinedContextAsTheConversations() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "migration-test-v3.db"
+        context.deleteDatabase(name)
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { db ->
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS conversation_records (id TEXT NOT NULL, " +
+                    "timestamp INTEGER NOT NULL, title TEXT, sourceLanguageName TEXT NOT NULL, " +
+                    "targetLanguageName TEXT NOT NULL, sourceText TEXT NOT NULL, " +
+                    "translatedText TEXT NOT NULL, summary TEXT, context TEXT, PRIMARY KEY(id))"
+            )
+            db.execSQL(
+                "INSERT INTO conversation_records VALUES " +
+                    "('r1', 1000, NULL, 'English', 'Russian', 'Hello', 'Привет', NULL, 'Cardiology lecture')"
+            )
+            db.version = 3
+        }
+
+        val database = Room.databaseBuilder(context, SynchraDatabase::class.java, name)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .build()
+        try {
+            val record = runBlocking { database.conversationRecordDao().getAll() }.single()
+            assertEquals("Cardiology lecture", record.context)
+            assertNull(record.userContext)
+        } finally {
+            database.close()
+            context.deleteDatabase(name)
+        }
+    }
+}

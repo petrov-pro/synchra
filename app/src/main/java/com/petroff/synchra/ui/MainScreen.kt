@@ -200,17 +200,19 @@ private fun ContextDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Conversation context") },
+        title = { Text("About this conversation") },
         text = {
             Column {
                 Text(
-                    "Added to your general context from Settings, for this conversation.",
+                    "Topic, participants and terms of this conversation. Sent together with " +
+                        "\"About you\" from Settings.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 TextField(
                     value = contextField,
                     onValueChange = { contextField = it.take(MAX_CONVERSATION_CONTEXT_CHARS) },
-                    label = { Text("Conversation context") },
+                    label = { Text("About this conversation") },
+                    placeholder = { Text("e.g. Sprint planning with John and Maria, about the checkout API") },
                     supportingText = { Text("${contextField.length} / $MAX_CONVERSATION_CONTEXT_CHARS") },
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth(),

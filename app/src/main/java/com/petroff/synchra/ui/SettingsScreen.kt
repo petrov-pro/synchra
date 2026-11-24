@@ -140,18 +140,20 @@ fun SettingsScreen(
             // Standing context, sent with every session ahead of the per-conversation one from the
             // Main screen's Context button — see LiveSession.start.
             FieldRow(
-                field = "General context",
-                helpText = "Background for every conversation (topic, names, terms). It helps " +
-                    "Soniox recognize and translate, and Claude write the summary. The Context " +
-                    "button on the main screen adds details for the current conversation.",
+                field = "About you",
+                helpText = "Who you are and what you work on: your name, role, company, team, " +
+                    "product and its terms. It goes with every conversation, helping Soniox " +
+                    "recognize and translate and Claude write the summary. Claude never treats it " +
+                    "as something said: you may only be listening. Details of one conversation " +
+                    "(topic, participants) go in the Context button on the main screen.",
                 onShowHelp = { helpDialog = it },
             ) {
                 TextField(
                     value = generalContextField,
                     onValueChange = { generalContextField = it.take(MAX_GENERAL_CONTEXT_CHARS) },
-                    label = { Text("General context") },
+                    label = { Text("About you") },
                     supportingText = { Text("${generalContextField.length} / $MAX_GENERAL_CONTEXT_CHARS") },
-                    placeholder = { Text("e.g. We're discussing a technical support call about billing") },
+                    placeholder = { Text("e.g. I'm Andrey, a backend engineer on the payments team (Go, Kafka)") },
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth(),
                 )
