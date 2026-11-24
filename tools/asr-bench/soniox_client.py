@@ -12,13 +12,16 @@ import time
 import soundfile as sf
 import websockets
 
+from silence_gate_sim import SilenceGate
+
 URL = "wss://stt-rt.soniox.com/transcribe-websocket"
 MODEL = "stt-rt-v6"
 CHUNK_S = 0.1
 
 
-async def _transcribe(path, api_key, target_language, realtime):
-    samples, sr = sf.read(path, dtype="int16")
+async def _transcribe(path, api_key, target_language, realtime, gate=False, endpoint=False):
+    # path: a WAV file, or (samples_int16, sample_rate) already in memory
+    samples, sr = path if isinstance(path, tuple) else sf.read(path, dtype="int16")
     chunk = int(sr * CHUNK_S)
     config = {
         "model": MODEL,
@@ -27,21 +30,36 @@ async def _transcribe(path, api_key, target_language, realtime):
         "num_channels": 1,
         "language_hints": ["en"],
     }
+    if endpoint:  # the app's settings
+        config["enable_endpoint_detection"] = True
+        config["max_endpoint_delay_ms"] = 1000
     if target_language:
         config["translation"] = {"type": "one_way", "target_language": target_language}
 
     original, translation = [], []
     t0 = time.perf_counter()
     first = audio_end = last_original = last_translation = None
+    sent_samples = 0
 
     async with websockets.connect(URL, additional_headers={"Authorization": f"Bearer {api_key}"},
                                   open_timeout=30) as ws:
         await ws.send(json.dumps(config))
 
         async def send_audio():
-            nonlocal audio_end
+            nonlocal audio_end, sent_samples
+            silence_gate = SilenceGate() if gate else None
             for i in range(0, len(samples), chunk):
-                await ws.send(samples[i:i + chunk].tobytes())
+                piece = samples[i:i + chunk]
+                if silence_gate is None:
+                    out, keepalive = [piece], False
+                else:
+                    out, keepalive = silence_gate.process(piece.astype("float32") / 32768)
+                    out = [(c * 32768).astype("int16") if c.dtype != "int16" else c for c in out]
+                for c in out:
+                    await ws.send(c.tobytes())
+                    sent_samples += len(c)
+                if keepalive:
+                    await ws.send(json.dumps({"type": "keepalive"}))
                 if realtime:
                     await asyncio.sleep(CHUNK_S)
             audio_end = time.perf_counter()
@@ -77,6 +95,7 @@ async def _transcribe(path, api_key, target_language, realtime):
         "text_after_end_s": after_end(last_original),
         "translation_after_end_s": after_end(last_translation),
         "audio_s": len(samples) / sr,
+        "sent_audio_s": sent_samples / sr,
         "wall_s": time.perf_counter() - t0,
     }
 
