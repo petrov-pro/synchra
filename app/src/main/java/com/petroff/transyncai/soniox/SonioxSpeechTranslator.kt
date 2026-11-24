@@ -34,6 +34,8 @@ interface SpeechTranslator {
         onFinished: (LiveTranscript) -> Unit,
         // The session ended itself after a long silence (onFinished still follows).
         onAutoStopped: () -> Unit = {},
+        // Audio started (true) or stopped (false) going to the provider — it is billed while true.
+        onSendingChanged: (Boolean) -> Unit = {},
     )
 
     fun stop()
@@ -54,7 +56,10 @@ class SonioxSpeechTranslator(
 ) : SpeechTranslator {
 
     /** Everything one start()…finished stream owns; old sessions never touch the current one. */
-    private inner class Session(private val onFinished: (LiveTranscript) -> Unit) {
+    private inner class Session(
+        private val onFinished: (LiveTranscript) -> Unit,
+        private val onSendingChanged: (Boolean) -> Unit,
+    ) {
         val audio: AudioSource = audioSourceFactory()
         // Soniox bills every second it receives, silence included: send speech, not pauses.
         val gate = SilenceGate()
@@ -64,6 +69,15 @@ class SonioxSpeechTranslator(
         val done = AtomicBoolean(false)
         @Volatile var latest = LiveTranscript("", "")
         @Volatile var socket: WebSocket? = null
+
+        private var sending = false
+
+        @Synchronized
+        fun setSending(now: Boolean) {
+            if (now == sending) return
+            sending = now
+            onSendingChanged(now)
+        }
 
         fun finish() {
             if (done.compareAndSet(false, true)) onFinished(latest)
@@ -78,6 +92,7 @@ class SonioxSpeechTranslator(
         onError: (String) -> Unit,
         onFinished: (LiveTranscript) -> Unit,
         onAutoStopped: () -> Unit,
+        onSendingChanged: (Boolean) -> Unit,
     ) {
         val apiKey = apiKeyProvider()
         if (apiKey.isNullOrBlank()) {
@@ -86,7 +101,7 @@ class SonioxSpeechTranslator(
             return
         }
 
-        val session = Session(onFinished)
+        val session = Session(onFinished, onSendingChanged)
         current = session
         val httpRequest = Request.Builder().url(url).header("Authorization", "Bearer $apiKey").build()
         session.socket = httpClient.newWebSocket(httpRequest, object : WebSocketListener() {
@@ -102,6 +117,7 @@ class SonioxSpeechTranslator(
                 session.audio.start { samples ->
                     val decision = session.gate.process(samples)
                     decision.send.forEach { webSocket.send(toPcm16(it).toByteString()) }
+                    session.setSending(decision.send.isNotEmpty())
                     if (decision.keepalive) webSocket.send(KEEPALIVE)
                     if (decision.autoStop && session.ending.compareAndSet(false, true)) {
                         Log.d(TAG, "stopping after a long silence")
@@ -125,6 +141,8 @@ class SonioxSpeechTranslator(
                     is SonioxEvent.Error -> {
                         Log.e(TAG, event.message)
                         session.audio.stop()
+                session.setSending(false)
+                        session.setSending(false)
                         onError(event.message)
                         session.finish()
                         webSocket.close(NORMAL_CLOSURE, null)
@@ -135,6 +153,7 @@ class SonioxSpeechTranslator(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "stream failed", t)
                 session.audio.stop()
+                session.setSending(false)
                 if (!session.done.get()) onError("Soniox connection failed: ${t.message}")
                 session.finish()
             }
@@ -152,6 +171,7 @@ class SonioxSpeechTranslator(
 
     private fun endAudio(session: Session) {
         session.audio.stop()
+        session.setSending(false)
         val ws = session.socket ?: return
         // Before onOpen the end-of-audio frame would go out ahead of the config; onOpen closes instead.
         if (session.opened) ws.send("") // end of audio; the server answers with finished:true

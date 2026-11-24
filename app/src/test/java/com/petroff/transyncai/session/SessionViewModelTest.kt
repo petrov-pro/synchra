@@ -7,7 +7,10 @@ import com.petroff.transyncai.config.FakeSettingsStore
 import com.petroff.transyncai.soniox.LiveRequest
 import com.petroff.transyncai.soniox.LiveTranscript
 import com.petroff.transyncai.soniox.SpeechTranslator
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -27,6 +30,7 @@ class FakeSpeechTranslator : SpeechTranslator {
         val onError: (String) -> Unit,
         val onFinished: (LiveTranscript) -> Unit,
         val onAutoStopped: () -> Unit,
+        val onSendingChanged: (Boolean) -> Unit,
     )
 
     var request: LiveRequest? = null
@@ -39,9 +43,10 @@ class FakeSpeechTranslator : SpeechTranslator {
         onError: (String) -> Unit,
         onFinished: (LiveTranscript) -> Unit,
         onAutoStopped: () -> Unit,
+        onSendingChanged: (Boolean) -> Unit,
     ) {
         this.request = request
-        sessions += Session(onUpdate, onError, onFinished, onAutoStopped)
+        sessions += Session(onUpdate, onError, onFinished, onAutoStopped, onSendingChanged)
     }
 
     override fun stop() {
@@ -51,6 +56,7 @@ class FakeSpeechTranslator : SpeechTranslator {
     fun emit(source: String, translation: String) = sessions.last().onUpdate(LiveTranscript(source, translation))
     fun fail(message: String) = sessions.last().onError(message)
     fun autoStop() = sessions.last().onAutoStopped()
+    fun sending(on: Boolean) = sessions.last().onSendingChanged(on)
     fun finish(source: String, translation: String) = finishSession(sessions.lastIndex, source, translation)
     fun finishSession(index: Int, source: String, translation: String) =
         sessions[index].onFinished(LiveTranscript(source, translation))
@@ -65,6 +71,7 @@ class SessionViewModelTest {
     private lateinit var speechTranslator: FakeSpeechTranslator
     private lateinit var configRepository: ConfigRepository
     private lateinit var historyRepository: FakeHistoryRepository
+    private lateinit var liveSession: LiveSession
     private lateinit var viewModel: SessionViewModel
 
     @Before
@@ -78,7 +85,8 @@ class SessionViewModelTest {
         )
         configRepository.setSonioxApiKey("snx-test")
         historyRepository = FakeHistoryRepository()
-        viewModel = SessionViewModel(speechTranslator, configRepository, historyRepository)
+        liveSession = LiveSession(speechTranslator, configRepository, historyRepository, CoroutineScope(dispatcher))
+        viewModel = SessionViewModel(liveSession)
     }
 
     @After
@@ -230,6 +238,33 @@ class SessionViewModelTest {
 
         viewModel.start()
         assertNull(viewModel.uiState.value.statusMessage)
+    }
+
+    @Test
+    fun `the session outlives its screen and a new screen shows the whole conversation`() {
+        viewModel.start()
+        speechTranslator.emit("Hello", "Привет")
+        viewModel.viewModelScope.cancel() // the screen is gone (Back, or the system closed it)
+
+        speechTranslator.emit("Hello, how are you", "Привет, как дела")
+        val newScreen = SessionViewModel(liveSession)
+
+        assertTrue(newScreen.uiState.value.isListening)
+        assertEquals("Hello, how are you", newScreen.uiState.value.sourceText)
+        assertEquals("Привет, как дела", newScreen.uiState.value.translatedText)
+    }
+
+    @Test
+    fun `whether audio is being sent to Soniox is part of the state`() {
+        viewModel.start()
+
+        speechTranslator.sending(true)
+        assertTrue(viewModel.uiState.value.isSending)
+        speechTranslator.sending(false)
+        assertFalse(viewModel.uiState.value.isSending)
+
+        viewModel.stop()
+        assertFalse(viewModel.uiState.value.isSending)
     }
 }
 

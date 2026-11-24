@@ -11,4 +11,8 @@ data class SessionUiState(
     val lastRecordId: String? = null,
     // Neutral notice, e.g. why a session ended by itself.
     val statusMessage: String? = null,
+    // Audio is going to Soniox right now (billed); false during pauses the silence gate holds back.
+    val isSending: Boolean = false,
+    // When the current/last session started, for the notification's timer.
+    val startedAt: Long? = null,
 )

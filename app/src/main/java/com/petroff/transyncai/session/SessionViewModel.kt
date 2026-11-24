@@ -1,137 +1,20 @@
 package com.petroff.transyncai.session
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.petroff.transyncai.config.ConfigRepository
-import com.petroff.transyncai.history.ConversationRecord
-import com.petroff.transyncai.history.HistoryRepository
-import com.petroff.transyncai.soniox.LiveRequest
-import com.petroff.transyncai.soniox.LiveTranscript
-import com.petroff.transyncai.soniox.SpeechTranslator
-import java.util.UUID
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
-/** Runs a live session: Soniox streams the transcript and its translation together. */
-class SessionViewModel(
-    private val speechTranslator: SpeechTranslator,
-    private val configRepository: ConfigRepository,
-    private val historyRepository: HistoryRepository,
-) : ViewModel() {
+/** The main screen's view of the app-wide [LiveSession]; closing the screen doesn't stop it. */
+class SessionViewModel(private val liveSession: LiveSession) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SessionUiState())
-    val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<SessionUiState> = liveSession.uiState
 
-    // Callbacks of a stopped session can arrive after the next one started; they may only save
-    // their own conversation, never touch the screen of the current session.
-    @Volatile private var currentSession = 0
+    fun setViewMode(mode: ViewMode) = liveSession.setViewMode(mode)
 
-    init {
-        refreshCanStart()
-    }
+    fun refreshCanStart() = liveSession.refreshCanStart()
 
-    fun setViewMode(mode: ViewMode) {
-        _uiState.update { it.copy(viewMode = mode, canStart = hasSonioxKey()) }
-    }
+    fun start() = liveSession.start()
 
-    /**
-     * Re-checks canStart against the current ConfigRepository state. Call this whenever config
-     * may have changed outside this ViewModel — e.g. after returning from Settings, where the
-     * Soniox key was saved via ConfigRepository directly.
-     */
-    fun refreshCanStart() {
-        _uiState.update { it.copy(canStart = hasSonioxKey()) }
-    }
+    fun stop() = liveSession.stop()
 
-    // Soniox both recognizes and translates, so its key is needed in every view mode.
-    private fun hasSonioxKey() = !configRepository.getConfig().sonioxApiKey.isNullOrBlank()
-
-    fun start() {
-        if (!hasSonioxKey()) {
-            _uiState.update { it.copy(canStart = false, errorMessage = "Set your Soniox API key in Settings") }
-            return
-        }
-        val config = configRepository.getConfig()
-        val session = ++currentSession
-        _uiState.update {
-            it.copy(
-                isListening = true,
-                sourceText = "",
-                translatedText = "",
-                errorMessage = null,
-                canStart = true,
-                lastRecordId = null,
-                statusMessage = null,
-            )
-        }
-        val pair = config.selectedLanguagePair
-        val translate = _uiState.value.viewMode != ViewMode.TRANSCRIPTION_ONLY
-        speechTranslator.start(
-            LiveRequest(
-                sourceLang = pair.sourceCode,
-                targetLang = if (translate) pair.targetCode else null,
-                // Conversation context, falling back to the general one from Settings.
-                context = config.conversationContext.ifBlank { config.generalContext },
-            ),
-            onUpdate = { live ->
-                if (session == currentSession) {
-                    _uiState.update { it.copy(sourceText = live.source, translatedText = live.translation) }
-                }
-            },
-            onError = { message ->
-                if (session == currentSession) _uiState.update { it.copy(errorMessage = message) }
-            },
-            onAutoStopped = {
-                if (session == currentSession) {
-                    _uiState.update { it.copy(statusMessage = "Stopped after 5 minutes of silence.") }
-                }
-            },
-            onFinished = { live ->
-                val isCurrent = session == currentSession
-                if (isCurrent) {
-                    _uiState.update {
-                        it.copy(isListening = false, sourceText = live.source, translatedText = live.translation)
-                    }
-                }
-                saveHistoryRecordIfNeeded(live, isCurrent)
-            },
-        )
-    }
-
-    fun stop() {
-        // History is saved from start's onFinished, once Soniox has flushed the last phrase and
-        // its translation; flip isListening now so the UI responds immediately.
-        speechTranslator.stop()
-        _uiState.update { it.copy(isListening = false) }
-    }
-
-    private fun saveHistoryRecordIfNeeded(live: LiveTranscript, isCurrentSession: Boolean) {
-        if (live.source.isBlank() && live.translation.isBlank()) return
-        val pair = configRepository.getConfig().selectedLanguagePair
-        val record = ConversationRecord(
-            id = UUID.randomUUID().toString(),
-            timestamp = System.currentTimeMillis(),
-            title = null,
-            sourceLanguageName = pair.sourceName,
-            targetLanguageName = pair.targetName,
-            sourceText = live.source,
-            translatedText = live.translation,
-        )
-        viewModelScope.launch {
-            historyRepository.addRecord(record)
-            // Summary target only for the session on screen; an older one is just saved.
-            if (isCurrentSession) _uiState.update { it.copy(lastRecordId = record.id) }
-        }
-    }
-
-    /** Forgets the Summary target if that record was deleted in History meanwhile. */
-    fun refreshLastRecord() {
-        val id = _uiState.value.lastRecordId ?: return
-        viewModelScope.launch {
-            if (historyRepository.getRecord(id) == null) _uiState.update { it.copy(lastRecordId = null) }
-        }
-    }
+    fun refreshLastRecord() = liveSession.refreshLastRecord()
 }

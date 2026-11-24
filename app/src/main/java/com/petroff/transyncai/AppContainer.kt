@@ -10,6 +10,7 @@ import com.petroff.transyncai.config.EncryptedPrefsSettingsStore
 import com.petroff.transyncai.history.HistoryRepository
 import com.petroff.transyncai.history.MIGRATION_1_2
 import com.petroff.transyncai.history.SummaryJobs
+import com.petroff.transyncai.session.LiveSession
 import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
 import com.petroff.transyncai.soniox.SonioxSpeechTranslator
@@ -50,6 +51,8 @@ class AppContainer(private val context: Context) {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val summaryJobs = SummaryJobs(appScope, historyRepository, summarizer)
+
+    val liveSession = LiveSession(buildSpeechTranslator(), configRepository, historyRepository, appScope)
 
     init {
         // The on-device recognition model (~650 MB) from before Soniox; nothing reads it anymore.

@@ -9,7 +9,11 @@ import com.petroff.transyncai.config.DefaultConfigRepository
 import com.petroff.transyncai.config.FakeSettingsStore
 import com.petroff.transyncai.history.RoomHistoryRepository
 import com.petroff.transyncai.history.TransyncDatabase
+import com.petroff.transyncai.session.LiveSession
 import com.petroff.transyncai.session.SessionViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import com.petroff.transyncai.soniox.SonioxSpeechTranslator
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
@@ -99,7 +103,9 @@ class SonioxE2ETest {
             url = server.url("/transcribe-websocket").toString(),
             apiKeyProvider = { configRepository.getConfig().sonioxApiKey },
         )
-        val viewModel = SessionViewModel(translator, configRepository, history)
+        val viewModel = SessionViewModel(
+            LiveSession(translator, configRepository, history, CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        )
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync { viewModel.start() }
         waitUntil { viewModel.uiState.value.translatedText.isNotBlank() }

@@ -198,7 +198,11 @@ class SonioxSpeechTranslatorTest {
         assertFalse(microphones[1].stopped)
     }
 
-    private fun translatorWith(audio: AudioSource, onAutoStopped: () -> Unit = {}) =
+    private fun translatorWith(
+        audio: AudioSource,
+        onAutoStopped: () -> Unit = {},
+        onSendingChanged: (Boolean) -> Unit = {},
+    ) =
         SonioxSpeechTranslator(
             audioSourceFactory = { audio },
             httpClient = OkHttpClient(),
@@ -211,6 +215,7 @@ class SonioxSpeechTranslatorTest {
                 onError = { errors.add(it) },
                 onFinished = { finished.add(it) },
                 onAutoStopped = onAutoStopped,
+                onSendingChanged = onSendingChanged,
             )
         }
 
@@ -252,6 +257,17 @@ class SonioxSpeechTranslatorTest {
         assertFalse(audio.started)
         assertEquals(null, fakeServer.binaries.poll(500, TimeUnit.MILLISECONDS))
         assertTrue(errors.isEmpty())
+    }
+
+    @Test
+    fun `reports when audio starts and stops going to Soniox`() {
+        val changes = LinkedBlockingQueue<Boolean>()
+        val speech = List(10) { FloatArray(1600) { i -> if (i % 2 == 0) 0.2f else -0.2f } }
+        translatorWith(ScriptedAudioSource(speech + silentChunks(3)), onSendingChanged = { changes.add(it) })
+
+        assertEquals(true, changes.poll(5, TimeUnit.SECONDS))
+        assertEquals(false, changes.poll(5, TimeUnit.SECONDS))
+        assertEquals(null, changes.poll(300, TimeUnit.MILLISECONDS))
     }
 }
 

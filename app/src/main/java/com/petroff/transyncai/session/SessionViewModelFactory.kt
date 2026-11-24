@@ -8,10 +8,6 @@ import com.petroff.transyncai.AppContainer
 class SessionViewModelFactory(private val container: AppContainer) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         @Suppress("UNCHECKED_CAST")
-        return SessionViewModel(
-            speechTranslator = container.buildSpeechTranslator(),
-            configRepository = container.configRepository,
-            historyRepository = container.historyRepository,
-        ) as T
+        return SessionViewModel(container.liveSession) as T
     }
 }
