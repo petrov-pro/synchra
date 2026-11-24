@@ -27,6 +27,20 @@ private class FakeAudioSource : AudioSource {
     override fun stop() { stopped = true }
 }
 
+/** Plays the given 100 ms chunks, as fast as the test runs. */
+private class ScriptedAudioSource(private val chunks: List<FloatArray>) : AudioSource {
+    var stopped = false
+    override fun start(onSamples: (FloatArray) -> Unit) {
+        for (c in chunks) {
+            if (stopped) return
+            onSamples(c)
+        }
+    }
+    override fun stop() { stopped = true }
+}
+
+private fun silentChunks(seconds: Int) = List(seconds * 10) { FloatArray(1600) }
+
 /** Server side of the mock WebSocket: records frames, lets the test push responses. */
 private class FakeSonioxServer : WebSocketListener() {
     val texts = LinkedBlockingQueue<String>()
@@ -178,6 +192,43 @@ class SonioxSpeechTranslatorTest {
 
         assertEquals(2, microphones.size)
         assertFalse(microphones[1].stopped)
+    }
+
+    private fun translatorWith(audio: AudioSource, onAutoStopped: () -> Unit = {}) =
+        SonioxSpeechTranslator(
+            audioSourceFactory = { audio },
+            httpClient = OkHttpClient(),
+            url = server.url("/transcribe-websocket").toString(),
+            apiKeyProvider = { "snx-test" },
+        ).also {
+            it.start(
+                LiveRequest("en", "ru", ""),
+                onUpdate = { updates.add(it) },
+                onError = { errors.add(it) },
+                onFinished = { finished.add(it) },
+                onAutoStopped = onAutoStopped,
+            )
+        }
+
+    @Test
+    fun `silence is not sent and a keepalive holds the stream open`() {
+        translatorWith(ScriptedAudioSource(silentChunks(12)))
+
+        assertNotNull(fakeServer.texts.poll(5, TimeUnit.SECONDS)) // config
+        assertEquals("""{"type":"keepalive"}""", fakeServer.texts.poll(5, TimeUnit.SECONDS))
+        assertEquals(null, fakeServer.binaries.poll(500, TimeUnit.MILLISECONDS))
+    }
+
+    @Test
+    fun `a minute of silence ends the session by itself`() {
+        val autoStopped = CountDownLatch(1)
+        val audio = ScriptedAudioSource(silentChunks(61))
+        translatorWith(audio, onAutoStopped = { autoStopped.countDown() })
+
+        assertTrue(autoStopped.await(5, TimeUnit.SECONDS))
+        assertTrue(audio.stopped)
+        val frames = generateSequence { fakeServer.texts.poll(1, TimeUnit.SECONDS) }.toList()
+        assertTrue("end-of-audio frame sent", frames.contains(""))
     }
 }
 

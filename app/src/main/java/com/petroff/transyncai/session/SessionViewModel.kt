@@ -64,6 +64,7 @@ class SessionViewModel(
                 errorMessage = null,
                 canStart = true,
                 lastRecordId = null,
+                statusMessage = null,
             )
         }
         val pair = config.selectedLanguagePair
@@ -82,6 +83,11 @@ class SessionViewModel(
             },
             onError = { message ->
                 if (session == currentSession) _uiState.update { it.copy(errorMessage = message) }
+            },
+            onAutoStopped = {
+                if (session == currentSession) {
+                    _uiState.update { it.copy(statusMessage = "Stopped after a minute of silence.") }
+                }
             },
             onFinished = { live ->
                 val isCurrent = session == currentSession

@@ -26,6 +26,7 @@ class FakeSpeechTranslator : SpeechTranslator {
         val onUpdate: (LiveTranscript) -> Unit,
         val onError: (String) -> Unit,
         val onFinished: (LiveTranscript) -> Unit,
+        val onAutoStopped: () -> Unit,
     )
 
     var request: LiveRequest? = null
@@ -37,9 +38,10 @@ class FakeSpeechTranslator : SpeechTranslator {
         onUpdate: (LiveTranscript) -> Unit,
         onError: (String) -> Unit,
         onFinished: (LiveTranscript) -> Unit,
+        onAutoStopped: () -> Unit,
     ) {
         this.request = request
-        sessions += Session(onUpdate, onError, onFinished)
+        sessions += Session(onUpdate, onError, onFinished, onAutoStopped)
     }
 
     override fun stop() {
@@ -48,6 +50,7 @@ class FakeSpeechTranslator : SpeechTranslator {
 
     fun emit(source: String, translation: String) = sessions.last().onUpdate(LiveTranscript(source, translation))
     fun fail(message: String) = sessions.last().onError(message)
+    fun autoStop() = sessions.last().onAutoStopped()
     fun finish(source: String, translation: String) = finishSession(sessions.lastIndex, source, translation)
     fun finishSession(index: Int, source: String, translation: String) =
         sessions[index].onFinished(LiveTranscript(source, translation))
@@ -216,6 +219,17 @@ class SessionViewModelTest {
         val saved = historyRepository.addedRecords.single()
         assertEquals("First talk", saved.sourceText)
         assertEquals("Первый разговор", saved.translatedText)
+    }
+
+    @Test
+    fun `an automatic stop after silence is explained and cleared on the next start`() {
+        viewModel.start()
+
+        speechTranslator.autoStop()
+        assertEquals("Stopped after a minute of silence.", viewModel.uiState.value.statusMessage)
+
+        viewModel.start()
+        assertNull(viewModel.uiState.value.statusMessage)
     }
 }
 

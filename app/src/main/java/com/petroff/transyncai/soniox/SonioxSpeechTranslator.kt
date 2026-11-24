@@ -32,6 +32,8 @@ interface SpeechTranslator {
         onError: (String) -> Unit,
         // Called exactly once per start(), after stop() or a fatal error, with the final text.
         onFinished: (LiveTranscript) -> Unit,
+        // The session ended itself after a long silence (onFinished still follows).
+        onAutoStopped: () -> Unit = {},
     )
 
     fun stop()
@@ -54,6 +56,9 @@ class SonioxSpeechTranslator(
     /** Everything one start()…finished stream owns; old sessions never touch the current one. */
     private inner class Session(private val onFinished: (LiveTranscript) -> Unit) {
         val audio: AudioSource = audioSourceFactory()
+        // Soniox bills every second it receives, silence included: send speech, not pauses.
+        val gate = SilenceGate()
+        val ending = AtomicBoolean(false)
         val transcript = SonioxTranscript()
         val done = AtomicBoolean(false)
         @Volatile var latest = LiveTranscript("", "")
@@ -71,6 +76,7 @@ class SonioxSpeechTranslator(
         onUpdate: (LiveTranscript) -> Unit,
         onError: (String) -> Unit,
         onFinished: (LiveTranscript) -> Unit,
+        onAutoStopped: () -> Unit,
     ) {
         val apiKey = apiKeyProvider()
         if (apiKey.isNullOrBlank()) {
@@ -85,7 +91,16 @@ class SonioxSpeechTranslator(
         session.socket = httpClient.newWebSocket(httpRequest, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 webSocket.send(configJson(request))
-                session.audio.start { samples -> webSocket.send(toPcm16(samples).toByteString()) }
+                session.audio.start { samples ->
+                    val decision = session.gate.process(samples)
+                    decision.send.forEach { webSocket.send(toPcm16(it).toByteString()) }
+                    if (decision.keepalive) webSocket.send(KEEPALIVE)
+                    if (decision.autoStop && session.ending.compareAndSet(false, true)) {
+                        Log.d(TAG, "stopping after a long silence")
+                        endAudio(session)
+                        onAutoStopped()
+                    }
+                }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -124,6 +139,10 @@ class SonioxSpeechTranslator(
 
     override fun stop() {
         val session = current ?: return
+        if (session.ending.compareAndSet(false, true)) endAudio(session)
+    }
+
+    private fun endAudio(session: Session) {
         session.audio.stop()
         val ws = session.socket ?: return
         ws.send("") // empty text frame = end of audio; the server answers with finished:true
@@ -167,5 +186,6 @@ class SonioxSpeechTranslator(
         const val MODEL = "stt-rt-v6"
         private const val NORMAL_CLOSURE = 1000
         private const val STOP_TIMEOUT_MS = 3000L
+        private const val KEEPALIVE = """{"type":"keepalive"}"""
     }
 }

@@ -154,6 +154,7 @@ fun MainScreen(
             }
 
             uiState.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            uiState.statusMessage?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
             TranscriptPanels(
                 viewMode = uiState.viewMode,
