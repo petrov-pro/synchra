@@ -1,0 +1,2 @@
+# synchra
+Live AI translation
