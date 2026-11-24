@@ -51,7 +51,14 @@ class SessionViewModel(
         }
         val config = configRepository.getConfig()
         _uiState.update {
-            it.copy(isListening = true, sourceText = "", translatedText = "", errorMessage = null, canStart = true)
+            it.copy(
+                isListening = true,
+                sourceText = "",
+                translatedText = "",
+                errorMessage = null,
+                canStart = true,
+                lastRecordId = null,
+            )
         }
         val pair = config.selectedLanguagePair
         val translate = _uiState.value.viewMode != ViewMode.TRANSCRIPTION_ONLY
@@ -93,6 +100,17 @@ class SessionViewModel(
             sourceText = state.sourceText,
             translatedText = state.translatedText,
         )
-        viewModelScope.launch { historyRepository.addRecord(record) }
+        viewModelScope.launch {
+            historyRepository.addRecord(record)
+            _uiState.update { it.copy(lastRecordId = record.id) }
+        }
+    }
+
+    /** Forgets the Summary target if that record was deleted in History meanwhile. */
+    fun refreshLastRecord() {
+        val id = _uiState.value.lastRecordId ?: return
+        viewModelScope.launch {
+            if (historyRepository.getRecord(id) == null) _uiState.update { it.copy(lastRecordId = null) }
+        }
     }
 }

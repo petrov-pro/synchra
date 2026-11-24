@@ -147,4 +147,49 @@ class SessionViewModelTest {
 
         assertEquals("Soniox 402: Organization balance exhausted.", viewModel.uiState.value.errorMessage)
     }
+
+    @Test
+    fun `finished session exposes the saved record id`() = runTest(dispatcher) {
+        viewModel.start()
+        viewModel.stop()
+        speechTranslator.finish("Good morning", "Доброе утро")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(historyRepository.addedRecords.single().id, viewModel.uiState.value.lastRecordId)
+    }
+
+    @Test
+    fun `silent session leaves no record id`() = runTest(dispatcher) {
+        viewModel.start()
+        viewModel.stop()
+        speechTranslator.finish("", "")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.lastRecordId)
+    }
+
+    @Test
+    fun `start clears the previous record id`() = runTest(dispatcher) {
+        viewModel.start()
+        speechTranslator.finish("Hi", "Привет")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.start()
+
+        assertNull(viewModel.uiState.value.lastRecordId)
+    }
+
+    @Test
+    fun `refreshLastRecord clears a deleted record`() = runTest(dispatcher) {
+        viewModel.start()
+        speechTranslator.finish("Hi", "Привет")
+        dispatcher.scheduler.advanceUntilIdle()
+        historyRepository.deleteRecord(viewModel.uiState.value.lastRecordId!!)
+
+        viewModel.refreshLastRecord()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.lastRecordId)
+    }
 }
+

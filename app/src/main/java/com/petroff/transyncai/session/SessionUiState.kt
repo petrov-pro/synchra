@@ -7,4 +7,6 @@ data class SessionUiState(
     val translatedText: String = "",
     val errorMessage: String? = null,
     val canStart: Boolean = true,
+    // Record saved by the last finished session in this app run — the main-screen Summary target.
+    val lastRecordId: String? = null,
 )
