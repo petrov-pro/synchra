@@ -23,6 +23,7 @@ data class AppConfig(
     val sonioxApiKey: String? = null,
     // Anonymous crash reports (Crashlytics): null until the user has answered the question.
     val crashReportsConsent: Boolean? = null,
+    val mode: Mode = Mode.PAID,
 ) {
     val selectedLanguagePair: LanguagePair
         get() = LanguagePair(sourceLanguage.code, sourceLanguage.name, targetLanguage.code, targetLanguage.name)

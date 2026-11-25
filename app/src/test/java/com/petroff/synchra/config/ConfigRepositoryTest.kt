@@ -173,4 +173,30 @@ class ConfigRepositoryTest {
         repo.setCrashReportsConsent(false)
         assertEquals(false, repo.getConfig().crashReportsConsent)
     }
+
+    @Test
+    fun `mode defaults to PAID when a Soniox key is saved`() {
+        store.putString("soniox_api_key", "k")
+        assertEquals(Mode.PAID, repo.getConfig().mode)
+    }
+
+    @Test
+    fun `mode defaults to FREE on a fresh install`() {
+        assertEquals(Mode.FREE, repo.getConfig().mode)
+    }
+
+    @Test
+    fun `setMode persists and keeps the keys`() {
+        store.putString("soniox_api_key", "k")
+        repo.setMode(Mode.FREE)
+        val config = repo.getConfig()
+        assertEquals(Mode.FREE, config.mode)
+        assertEquals("k", config.sonioxApiKey)
+    }
+
+    @Test
+    fun `an unknown stored mode falls back to the default`() {
+        store.putString("mode", "garbage")
+        assertEquals(Mode.FREE, repo.getConfig().mode)
+    }
 }
