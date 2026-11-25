@@ -19,18 +19,27 @@ translation as you talk, without waiting for the end of a sentence.
   - **Paid** — Soniox recognizes and translates in the cloud (60 languages, best quality),
     Claude writes summaries. Needs your own API keys.
 
+  > **Recommended: Paid mode.** It recognizes speech more accurately, translates with the
+  > context of the conversation, covers more languages and writes summaries, at about
+  > $0.12–0.23 per hour of audio. Free mode is for trying the app or for when nothing may
+  > leave the phone: its translation is word-for-word plainer, context is not used, there are
+  > no summaries, and it needs ≈680 MB on the phone plus a few minutes to download and unpack
+  > the speech model.
+
+- **Context (Paid).** A global context (in Settings) and a per-conversation note ("topic,
+  participants, terms") help recognition and translation of names and jargon. Free mode hides
+  both: its on-device engines don't use them.
+
 - **Live transcription and translation.** The source and target languages are chosen in
-  Settings from the 60 languages Soniox supports; the main screen shows the pair in short form
+  Settings (60 languages in Paid, 28 spoken languages in Free); the main screen shows the pair in short form
   (for example `En-Ru`).
 - **Three view modes:** both texts side by side, transcription only or translation only.
   Transcription-only sessions skip translation altogether.
-- **Context.** A global context (in Settings) and a per-conversation note ("topic, participants,
-  terms") help recognition and translation of names and jargon.
 - **Recording in the background.** A foreground service keeps listening while the screen is off
   or another app is open.
 - **History.** Every session is saved on the device and can be reopened, copied (long press) or
   deleted.
-- **Summaries.** A finished conversation can be summarized by Claude into blocks: topic,
+- **Summaries (Paid).** A finished conversation can be summarized by Claude into blocks: topic,
   overview, decisions and results.
 
 ## Technology
