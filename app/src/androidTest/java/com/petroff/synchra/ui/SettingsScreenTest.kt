@@ -372,6 +372,8 @@ class SettingsScreenTest {
         showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Failed)
         composeRule.onNodeWithText("Download failed — tap Download to resume").assertExists()
         composeRule.onNodeWithText("Download").assertExists()
+        // A broken partial download can always be thrown away.
+        composeRule.onNodeWithText("Delete").assertIsEnabled()
     }
 
     @Test

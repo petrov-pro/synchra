@@ -431,4 +431,14 @@ class SessionViewModelTest {
         liveSession.setPreparing(false)
         assertFalse(viewModel.uiState.value.isPreparing)
     }
+
+    @Test
+    fun `the reason Start is off is shown without pressing it`() {
+        freeMode()
+        assertEquals("Download the speech model in Settings", viewModel.uiState.value.startHint)
+
+        modelReady = true
+        liveSession.refreshCanStart()
+        assertNull(viewModel.uiState.value.startHint)
+    }
 }

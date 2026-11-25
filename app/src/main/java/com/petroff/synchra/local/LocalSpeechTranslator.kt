@@ -89,7 +89,12 @@ class LocalSpeechTranslator(
                 if (ending.get()) return@launch
                 val audio = GatedAudio(audioSourceFactory())
                 val asr = recognizerFactory(request.sourceLang, audio)
-                recognizer = asr
+                // Checked and published together with end(), so a Stop in between can't miss
+                // the recognizer and leave the microphone on.
+                synchronized(lock) {
+                    if (ending.get()) return@launch
+                    recognizer = asr
+                }
                 asr.start(onSegment = ::onSegment, onError = { e ->
                     onError("Speech recognition failed: ${e.message ?: e.javaClass.simpleName}")
                     end()
@@ -126,15 +131,19 @@ class LocalSpeechTranslator(
 
         /** Stops listening; onFinished follows once the last pieces are translated. */
         fun end() {
-            if (!ending.compareAndSet(false, true)) return
-            recognizer?.stop()
             val rest: String?
+            val running: SpeechRecognizer?
             synchronized(lock) {
+                if (!ending.compareAndSet(false, true)) return
+                running = recognizer
                 // The phrase in progress counts: the recognizer won't finish it any more.
                 if (partial.isNotBlank()) finals += partial
                 rest = chunker.onFinal(partial)
                 partial = ""
             }
+            // Outside the lock: stopping waits for the microphone thread, which may be
+            // waiting for the lock in onSegment.
+            running?.stop()
             if (translate) {
                 if (!rest.isNullOrBlank()) chunks.trySend(rest)
                 chunks.close() // translateInOrder drains what's queued, then finishes

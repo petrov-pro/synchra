@@ -16,6 +16,15 @@ class ResumableDownloader(private val httpClient: OkHttpClient) {
             .apply { if (existing > 0) header("Range", "bytes=$existing-") }
             .build()
         httpClient.newCall(request).execute().use { response ->
+            // Asked for bytes past the end: the file on disk is already whole.
+            if (response.code == 416 && existing > 0) {
+                val total = response.header("Content-Range")?.substringAfter('/')?.toLongOrNull()
+                if (total == null || total == existing) {
+                    onProgress(existing, existing)
+                    return
+                }
+                throw IOException("Download failed: the partial file doesn't match the server's ($existing of $total bytes)")
+            }
             val resumed = response.code == 206
             if (!response.isSuccessful) throw IOException("Download failed: HTTP ${response.code}")
             val body = response.body ?: throw IOException("Download failed: empty response")

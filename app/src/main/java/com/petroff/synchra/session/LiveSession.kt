@@ -62,7 +62,10 @@ class LiveSession(
      */
     fun refreshCanStart() {
         val mode = configRepository.getConfig().mode
-        _uiState.update { it.copy(canStart = startProblem() == null, mode = mode) }
+        val problem = startProblem()
+        _uiState.update {
+            it.copy(canStart = problem == null, mode = mode, startHint = problem.takeIf { mode == Mode.FREE })
+        }
     }
 
     /** Free mode: the on-device translation models are being made ready. */

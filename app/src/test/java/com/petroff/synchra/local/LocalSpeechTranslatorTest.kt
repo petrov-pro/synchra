@@ -22,10 +22,13 @@ class LocalSpeechTranslatorTest {
     private val updates = mutableListOf<LiveTranscript>()
     private var autoStopped = 0
     private val preparing = mutableListOf<Boolean>()
+    // Runs while the recognizer is being created: lets a test press Stop at that moment.
+    private var whileCreatingRecognizer: () -> Unit = {}
 
     private fun TestScope.engine(gate: () -> SilenceGate = { SilenceGate() }) = LocalSpeechTranslator(
         audioSourceFactory = { audio },
         recognizerFactory = { language, source ->
+            whileCreatingRecognizer()
             FakeSpeechRecognizer(source).also { it.language = language; recognizer = it }
         },
         translatorFactory = { translator },
@@ -165,5 +168,17 @@ class LocalSpeechTranslatorTest {
         assertEquals(1, autoStopped)
         assertEquals(1, finished.size)
         assertFalse(errors.any())
+    }
+
+    @Test
+    fun `stop while the recognizer is being created never starts it`() = runTest {
+        lateinit var engine: LocalSpeechTranslator
+        whileCreatingRecognizer = { engine.stop() }
+        engine = engine()
+        engine.begin()
+        advanceUntilIdle()
+
+        assertFalse(recognizer!!.started)
+        assertEquals(1, finished.size)
     }
 }

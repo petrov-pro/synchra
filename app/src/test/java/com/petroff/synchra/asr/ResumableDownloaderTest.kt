@@ -66,4 +66,16 @@ class ResumableDownloaderTest {
             assertEquals("hello ", part.readText())
         }
     }
+
+    @Test
+    fun `a range past the end means the file is already complete`() {
+        val part = tmp.newFile("m.part").apply { writeText("hello world") }
+        server.enqueue(MockResponse().setResponseCode(416).setHeader("Content-Range", "bytes */11"))
+        var last: Pair<Long, Long>? = null
+
+        downloader.download(server.url("/m").toString(), part) { done, total -> last = done to total }
+
+        assertEquals("hello world", part.readText())
+        assertEquals(11L to 11L, last)
+    }
 }

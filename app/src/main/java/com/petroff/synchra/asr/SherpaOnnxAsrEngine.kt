@@ -1,42 +1,51 @@
 package com.petroff.synchra.asr
 
-import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import kotlin.concurrent.thread
 
-/**
- * Streaming recognition on the phone with sherpa-onnx. [language] is the spoken language's
- * code (e.g. "en"); empty lets the model detect it.
- */
+/** One recognition stream over a loaded model; native memory until [release]. */
+interface StreamingDecoder {
+    fun accept(samples: FloatArray)
+    /** The current utterance and whether it just ended. */
+    fun result(): Pair<String, Boolean>
+    fun reset()
+    fun release()
+}
+
+/** Streaming recognition on the phone: microphone → [StreamingDecoder] (sherpa-onnx). */
 class SherpaOnnxAsrEngine(
     private val audioSource: AudioSource,
-    private val recognizerFactory: () -> OnlineRecognizer,
-    private val language: String,
+    // Loads the model (seconds, ~650 MB): runs on the engine's own thread.
+    private val decoderFactory: () -> StreamingDecoder,
 ) : SpeechRecognizer {
 
-    @Volatile
-    private var stopRequested = false
+    private val lock = Any()
+    private var stopRequested = false // guarded by lock
+    private var decoder: StreamingDecoder? = null // guarded by lock; null once released
 
     override fun start(onSegment: (AsrSegment) -> Unit, onError: (Throwable) -> Unit) {
-        stopRequested = false
-        // Loading the ~650 MB model takes seconds: never on the caller's (main) thread.
+        synchronized(lock) { stopRequested = false }
         thread(name = "SherpaOnnxAsrEngine") {
             try {
-                val recognizer = recognizerFactory()
-                val stream = recognizer.createStream()
-                if (language.isNotBlank()) stream.setOption("language", language)
-                // Stop pressed while the model was loading: the microphone is never opened.
-                if (stopRequested) {
-                    stream.release()
-                    recognizer.release()
-                    return@thread
-                }
-                audioSource.start { samples ->
-                    stream.acceptWaveform(samples, MicAudioSource.SAMPLE_RATE)
-                    while (recognizer.isReady(stream)) recognizer.decode(stream)
-                    val isEndpoint = recognizer.isEndpoint(stream)
-                    val text = recognizer.getResult(stream).text
-                    if (text.isNotBlank() || isEndpoint) onSegment(AsrSegment(text, isEndpoint))
-                    if (isEndpoint) recognizer.reset(stream)
+                val loaded = decoderFactory()
+                // The check and the microphone start happen under the lock stop() takes, so a
+                // Stop arriving meanwhile either prevents the start or sees the running mic.
+                synchronized(lock) {
+                    if (stopRequested) {
+                        loaded.release()
+                        return@thread
+                    }
+                    decoder = loaded
+                    audioSource.start { samples ->
+                        val segment = synchronized(lock) {
+                            // Released by stop(): never touch freed native memory.
+                            val d = decoder ?: return@start
+                            d.accept(samples)
+                            val (text, isEndpoint) = d.result()
+                            if (isEndpoint) d.reset()
+                            if (text.isNotBlank() || isEndpoint) AsrSegment(text, isEndpoint) else null
+                        }
+                        segment?.let(onSegment)
+                    }
                 }
             } catch (e: Throwable) {
                 onError(e)
@@ -45,7 +54,13 @@ class SherpaOnnxAsrEngine(
     }
 
     override fun stop() {
-        stopRequested = true
+        synchronized(lock) { stopRequested = true }
+        // Waits for the microphone thread, then frees the model's native memory, which the
+        // garbage collector doesn't know about.
         audioSource.stop()
+        synchronized(lock) {
+            decoder?.release()
+            decoder = null
+        }
     }
 }

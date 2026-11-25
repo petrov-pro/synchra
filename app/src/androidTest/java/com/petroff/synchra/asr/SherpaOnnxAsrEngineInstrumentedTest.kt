@@ -32,7 +32,7 @@ class SherpaOnnxAsrEngineInstrumentedTest {
         assumeTrue("model not on the device", listOf(paths.encoder, paths.decoder, paths.joiner, paths.tokens).all { File(it).length() > 0 })
 
         val audio = WavFileAudioSource(InstrumentationRegistry.getInstrumentation().context.assets, EN_WAV)
-        val engine = SherpaOnnxAsrEngine(audio, { createNemotronRecognizer(paths) }, language = "en")
+        val engine = SherpaOnnxAsrEngine(audio, { createNemotronDecoder(paths, language = "en") })
         val texts = mutableListOf<String>()
         val errors = mutableListOf<Throwable>()
         val done = CountDownLatch(1)

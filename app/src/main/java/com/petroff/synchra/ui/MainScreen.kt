@@ -176,6 +176,9 @@ fun MainScreen(
                 Text(if (uiState.isListening) "Stop" else "Start")
             }
 
+            if (!uiState.isListening && !uiState.canStart) {
+                uiState.startHint?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
             if (uiState.isPreparing) Text("Preparing translation…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             uiState.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             uiState.statusMessage?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }

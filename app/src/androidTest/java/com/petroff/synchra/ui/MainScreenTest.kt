@@ -515,4 +515,10 @@ class MainScreenTest {
         showMain(SessionUiState(mode = com.petroff.synchra.config.Mode.FREE, isListening = true, isPreparing = true))
         composeRule.onNodeWithText("Preparing translation…").assertExists()
     }
+
+    @Test
+    fun theReasonStartIsOffIsShown() {
+        showMain(SessionUiState(mode = com.petroff.synchra.config.Mode.FREE, canStart = false, startHint = "Download the speech model in Settings"))
+        composeRule.onNodeWithText("Download the speech model in Settings").assertExists()
+    }
 }

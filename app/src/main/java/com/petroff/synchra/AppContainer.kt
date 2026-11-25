@@ -5,7 +5,7 @@ import androidx.room.Room
 import com.petroff.synchra.asr.MicAudioSource
 import com.petroff.synchra.asr.ModelDownloads
 import com.petroff.synchra.asr.SherpaOnnxAsrEngine
-import com.petroff.synchra.asr.createNemotronRecognizer
+import com.petroff.synchra.asr.createNemotronDecoder
 import com.petroff.synchra.local.LocalSpeechTranslator
 import com.petroff.synchra.session.ModeSwitchingSpeechTranslator
 import com.petroff.synchra.translate.MlKitTranslator
@@ -98,7 +98,7 @@ class AppContainer(private val context: Context) {
     private fun buildLocalSpeechTranslator(): SpeechTranslator = LocalSpeechTranslator(
         audioSourceFactory = { MicAudioSource() },
         recognizerFactory = { language, audio ->
-            SherpaOnnxAsrEngine(audio, { createNemotronRecognizer(modelDownloads.store.paths()) }, language)
+            SherpaOnnxAsrEngine(audio, { createNemotronDecoder(modelDownloads.store.paths(), language) })
         },
         translatorFactory = { MlKitTranslator() },
         scope = appScope,

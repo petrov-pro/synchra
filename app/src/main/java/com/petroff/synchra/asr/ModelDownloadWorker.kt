@@ -81,8 +81,13 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
                     if (total > 0) percent.set((done * 99 / total).toInt())
                 }
                 unpacking.set(true)
-                ModelArchiveExtractor.extract(store.archivePart, speechModelDir(applicationContext), MODEL_FILES.toSet())
-                store.archivePart.delete()
+                try {
+                    ModelArchiveExtractor.extract(store.archivePart, speechModelDir(applicationContext), MODEL_FILES.toSet())
+                } finally {
+                    // Unpacked or broken, the archive is not needed again: a broken one would
+                    // otherwise be "resumed" forever. The next Download fetches it anew.
+                    store.archivePart.delete()
+                }
             }
             percent.set(100)
             Result.success()

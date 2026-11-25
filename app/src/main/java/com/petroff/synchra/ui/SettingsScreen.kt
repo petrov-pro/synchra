@@ -359,7 +359,12 @@ private fun SpeechModelRow(
             }
             Text(status, modifier = Modifier.weight(1f).testTag("speechModelStatus"))
             when (state) {
-                ModelState.NotDownloaded, ModelState.Failed -> TextButton(onClick = onDownload) { Text("Download") }
+                ModelState.NotDownloaded -> TextButton(onClick = onDownload) { Text("Download") }
+                ModelState.Failed -> Row {
+                    TextButton(onClick = onDownload) { Text("Download") }
+                    // Throws away a partial download that keeps failing.
+                    TextButton(onClick = onDelete, enabled = !isRecording) { Text("Delete") }
+                }
                 is ModelState.Downloading, ModelState.Unpacking -> TextButton(onClick = onCancel) { Text("Cancel") }
                 ModelState.Ready -> TextButton(onClick = onDelete, enabled = !isRecording) { Text("Delete") }
             }

@@ -31,4 +31,26 @@ fun createNemotronRecognizer(paths: ModelPaths): OnlineRecognizer = OnlineRecogn
     ),
 )
 
+/** A decoder for [language] ("en", "ru"…; empty = detect) over the Nemotron model. */
+fun createNemotronDecoder(paths: ModelPaths, language: String): StreamingDecoder {
+    val recognizer = createNemotronRecognizer(paths)
+    val stream = recognizer.createStream()
+    if (language.isNotBlank()) stream.setOption("language", language)
+    return object : StreamingDecoder {
+        override fun accept(samples: FloatArray) {
+            stream.acceptWaveform(samples, MicAudioSource.SAMPLE_RATE)
+            while (recognizer.isReady(stream)) recognizer.decode(stream)
+        }
+
+        override fun result(): Pair<String, Boolean> = recognizer.getResult(stream).text to recognizer.isEndpoint(stream)
+
+        override fun reset() = recognizer.reset(stream)
+
+        override fun release() {
+            stream.release()
+            recognizer.release()
+        }
+    }
+}
+
 internal const val NEMOTRON_MODEL_TYPE = "nemo_transducer"

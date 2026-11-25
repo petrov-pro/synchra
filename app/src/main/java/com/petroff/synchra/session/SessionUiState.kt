@@ -24,4 +24,6 @@ data class SessionUiState(
     val isPreparing: Boolean = false,
     // Mode from Settings, refreshed with canStart; Free mode has no summaries.
     val mode: Mode = Mode.PAID,
+    // Free mode: why Start is off, shown under it (Paid sends the user to the key instead).
+    val startHint: String? = null,
 )
