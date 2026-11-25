@@ -42,6 +42,7 @@ class ConversationScreenTest {
         onSummaryClick: () -> Unit = {},
         onOriginalClick: () -> Unit = {},
         onDismissError: () -> Unit = {},
+        canSummarize: Boolean = true,
     ) = composeRule.setContent {
         ConversationScreen(
             state = state,
@@ -50,6 +51,7 @@ class ConversationScreenTest {
             onOriginalClick = onOriginalClick,
             onViewModeChange = {},
             onDismissError = onDismissError,
+            canSummarize = canSummarize,
         )
     }
 
@@ -183,5 +185,20 @@ class ConversationScreenTest {
         show(ConversationUiState(record = record(), view = ConversationView.ORIGINAL))
 
         composeRule.onNodeWithTag("languagePair").assertTextEquals("En-Ru")
+    }
+
+    @Test
+    fun freeModeHidesTheSummaryButtonWithoutASummary() {
+        show(ConversationUiState(record = record(), view = ConversationView.ORIGINAL), canSummarize = false)
+
+        composeRule.onNodeWithContentDescription("Summary").assertDoesNotExist()
+        composeRule.onNodeWithText("We agreed on the deadline.").assertExists()
+    }
+
+    @Test
+    fun freeModeStillShowsASavedSummary() {
+        show(ConversationUiState(record = record(summary = "Срок согласован."), view = ConversationView.ORIGINAL), canSummarize = false)
+
+        composeRule.onNodeWithContentDescription("Summary").assertExists()
     }
 }

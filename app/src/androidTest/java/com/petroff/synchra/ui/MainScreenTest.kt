@@ -484,4 +484,35 @@ class MainScreenTest {
 
         composeRule.onNodeWithText("Send crash reports?").assertDoesNotExist()
     }
+
+    private fun showMain(state: SessionUiState) = composeRule.setContent {
+        MainScreen(
+            uiState = state,
+            sourceLanguage = english,
+            targetLanguage = russian,
+            currentConversationContext = "",
+            onToggleListening = {},
+            onViewModeChange = {},
+            onOpenSettings = {},
+            onSaveConversationContext = {},
+        )
+    }
+
+    @Test
+    fun summaryIsHiddenInFreeMode() {
+        showMain(SessionUiState(mode = com.petroff.synchra.config.Mode.FREE, lastRecordId = "r1"))
+        composeRule.onNodeWithContentDescription("Summary").assertDoesNotExist()
+    }
+
+    @Test
+    fun summaryIsShownInPaidMode() {
+        showMain(SessionUiState(mode = com.petroff.synchra.config.Mode.PAID, lastRecordId = "r1"))
+        composeRule.onNodeWithContentDescription("Summary").assertExists()
+    }
+
+    @Test
+    fun preparingTranslationIsShown() {
+        showMain(SessionUiState(mode = com.petroff.synchra.config.Mode.FREE, isListening = true, isPreparing = true))
+        composeRule.onNodeWithText("Preparing translation…").assertExists()
+    }
 }

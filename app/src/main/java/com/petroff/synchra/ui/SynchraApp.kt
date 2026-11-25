@@ -1,5 +1,9 @@
 package com.petroff.synchra.ui
 
+import com.petroff.synchra.asr.ModelState
+import com.petroff.synchra.config.Mode
+import com.petroff.synchra.translate.mlKitTargetCodes
+
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -57,6 +61,9 @@ fun SynchraApp(container: AppContainer) {
                 val historyViewModel: HistoryViewModel = viewModel(
                     factory = viewModelFactory { initializer { HistoryViewModel(container.historyRepository) } }
                 )
+                // The speech model may finish downloading while Main is shown.
+                val appModelState by container.modelDownloads.state.collectAsState(initial = ModelState.NotDownloaded)
+                LaunchedEffect(appModelState) { sessionViewModel.refreshCanStart() }
                 LaunchedEffect(backStackEntry) {
                     config = container.configRepository.getConfig()
                     sessionViewModel.refreshCanStart()
@@ -111,7 +118,8 @@ fun SynchraApp(container: AppContainer) {
                             onSummary = {
                                 uiState.lastRecordId?.let { navController.navigateOnce("conversation/$it?summarize=true") }
                             },
-                            hasApiKey = !config.sonioxApiKey.isNullOrBlank(),
+                            // Free mode needs no key.
+                            hasApiKey = config.mode == Mode.FREE || !config.sonioxApiKey.isNullOrBlank(),
                             onApiKeyRequired = {
                                 focusApiKeyOnSettingsOpen = true
                                 navController.navigateOnce("settings")
@@ -166,6 +174,7 @@ fun SynchraApp(container: AppContainer) {
                             onSummaryClick = conversationViewModel::onSummaryClick,
                             onOriginalClick = conversationViewModel::onOriginalClick,
                             onViewModeChange = conversationViewModel::setViewMode,
+                            canSummarize = config.mode == Mode.PAID,
                             onDismissError = {
                                 val close = state.closeOnErrorDismiss
                                 conversationViewModel.dismissError()
@@ -175,7 +184,16 @@ fun SynchraApp(container: AppContainer) {
                         )
                     }
                     composable("settings") {
+                        val modelState by container.modelDownloads.state.collectAsState(initial = ModelState.NotDownloaded)
                         SettingsScreen(
+                            currentMode = config.mode,
+                            onSaveMode = { container.configRepository.setMode(it) },
+                            modelState = modelState,
+                            onDownloadModel = container.modelDownloads::start,
+                            onCancelModel = container.modelDownloads::cancel,
+                            onDeleteModel = container.modelDownloads::delete,
+                            isRecording = uiState.isListening,
+                            onDeviceTargetCodes = remember { mlKitTargetCodes() },
                             currentSonioxApiKey = config.sonioxApiKey,
                             currentApiKey = config.apiKey,
                             currentGeneralContext = config.generalContext,

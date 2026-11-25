@@ -1,5 +1,7 @@
 package com.petroff.synchra.ui
 
+import com.petroff.synchra.config.Mode
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -108,8 +110,11 @@ fun MainScreen(
                         Icon(Icons.Filled.History, contentDescription = "History")
                     }
                     // Summarizes the conversation the last Stop saved; nothing to summarize mid-session.
-                    IconButton(onClick = onSummary, enabled = !uiState.isListening && uiState.lastRecordId != null) {
-                        Icon(Icons.Filled.Summarize, contentDescription = "Summary")
+                    // Free mode makes no summaries.
+                    if (uiState.mode != Mode.FREE) {
+                        IconButton(onClick = onSummary, enabled = !uiState.isListening && uiState.lastRecordId != null) {
+                            Icon(Icons.Filled.Summarize, contentDescription = "Summary")
+                        }
                     }
                     VerticalDivider(
                         modifier = Modifier
@@ -171,6 +176,7 @@ fun MainScreen(
                 Text(if (uiState.isListening) "Stop" else "Start")
             }
 
+            if (uiState.isPreparing) Text("Preparing translation…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             uiState.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             uiState.statusMessage?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
