@@ -6,8 +6,8 @@ import org.junit.Test
 class RecordingNotificationTextTest {
 
     @Test
-    fun `says when audio is going to Soniox`() {
-        assertEquals("Sending audio to Soniox", recordingStatusText(isSending = true))
+    fun `says when audio is being sent, without naming the provider`() {
+        assertEquals("Sending audio", recordingStatusText(isSending = true))
     }
 
     @Test

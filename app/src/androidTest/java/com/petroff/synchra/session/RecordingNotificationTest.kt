@@ -26,7 +26,7 @@ class RecordingNotificationTest {
         val notification = RecordingService.buildNotification(context, state)
 
         val text = notification.extras.getCharSequence(NotificationCompat.EXTRA_TEXT).toString()
-        assertEquals("Sending audio to Soniox", text)
+        assertEquals("Sending audio", text)
         assertTrue(notification.extras.getBoolean(NotificationCompat.EXTRA_SHOW_CHRONOMETER))
         assertEquals(1_700_000_000_000L, notification.`when`)
         assertEquals("Stop", notification.actions.single().title.toString())

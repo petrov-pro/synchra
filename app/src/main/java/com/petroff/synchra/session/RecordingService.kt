@@ -22,9 +22,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.launch
 
-/** Shown in the notification: whether audio is going to the provider (and billed) right now. */
+/** Shown in the notification: whether audio is being sent (and billed) right now. */
 fun recordingStatusText(isSending: Boolean): String =
-    if (isSending) "Sending audio to Soniox" else "Listening · nothing sent"
+    if (isSending) "Sending audio" else "Listening · nothing sent"
 
 /**
  * Keeps a live session recording while the app is in the background or the screen is locked
