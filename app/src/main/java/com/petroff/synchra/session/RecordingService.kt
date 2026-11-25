@@ -17,14 +17,19 @@ import com.petroff.synchra.SynchraApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import com.petroff.synchra.config.Mode
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.launch
 
 /** Shown in the notification: whether audio is being sent (and billed) right now. */
-fun recordingStatusText(isSending: Boolean): String =
-    if (isSending) "Sending audio" else "Listening · nothing sent"
+fun recordingStatusText(isSending: Boolean, mode: Mode): String = when {
+    // Free mode never sends anything, so there is nothing to tell apart.
+    mode == Mode.FREE -> "Listening"
+    isSending -> "Sending audio"
+    else -> "Listening · nothing sent"
+}
 
 /**
  * Keeps a live session recording while the app is in the background or the screen is locked
@@ -106,7 +111,7 @@ class RecordingService : Service() {
             return NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_mic)
                 .setContentTitle("Synchra")
-                .setContentText(recordingStatusText(state.isSending))
+                .setContentText(recordingStatusText(state.isSending, state.mode))
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)

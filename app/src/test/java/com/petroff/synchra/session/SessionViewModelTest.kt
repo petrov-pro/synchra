@@ -80,6 +80,8 @@ class SessionViewModelTest {
     private lateinit var liveSession: LiveSession
     private lateinit var viewModel: SessionViewModel
     private lateinit var crashReporter: RecordingCrashReporter
+    private var modelReady = false
+    private var onDeviceTargets = setOf("ru", "de", "en")
 
     @Before
     fun setUp() {
@@ -94,6 +96,8 @@ class SessionViewModelTest {
         crashReporter = RecordingCrashReporter()
         liveSession = LiveSession(
             speechTranslator, configRepository, historyRepository, CoroutineScope(dispatcher), crashReporter,
+            modelReady = { modelReady },
+            onDeviceTargetCodes = { onDeviceTargets },
         )
         viewModel = SessionViewModel(liveSession)
     }
@@ -360,5 +364,71 @@ class SessionViewModelTest {
             listOf("session start en-ru translate=true", "session error: Soniox: connection lost", "session stop"),
             crashReporter.events,
         )
+    }
+
+    // --- Free mode ---
+
+    private fun freeMode() {
+        configRepository.setMode(com.petroff.synchra.config.Mode.FREE)
+        liveSession.refreshCanStart()
+    }
+
+    @Test
+    fun `free mode without the speech model cannot start`() {
+        freeMode()
+        assertFalse(viewModel.uiState.value.canStart)
+
+        viewModel.start()
+
+        assertEquals("Download the speech model in Settings", viewModel.uiState.value.errorMessage)
+        assertEquals(0, speechTranslator.startCount)
+    }
+
+    @Test
+    fun `free mode with an unsupported speech language cannot start, paid can`() {
+        modelReady = true
+        configRepository.setSourceLanguage("af")
+        freeMode()
+        assertFalse(viewModel.uiState.value.canStart)
+        viewModel.start()
+        assertEquals("Pick a language the free mode supports", viewModel.uiState.value.errorMessage)
+
+        configRepository.setMode(com.petroff.synchra.config.Mode.PAID)
+        liveSession.refreshCanStart()
+
+        assertTrue(viewModel.uiState.value.canStart)
+        assertEquals("af", configRepository.getConfig().sourceLanguage.code)
+    }
+
+    @Test
+    fun `free transcription only ignores the target language`() {
+        modelReady = true
+        onDeviceTargets = emptySet()
+        freeMode()
+        assertFalse(viewModel.uiState.value.canStart)
+
+        viewModel.setViewMode(ViewMode.TRANSCRIPTION_ONLY)
+
+        assertTrue(viewModel.uiState.value.canStart)
+    }
+
+    @Test
+    fun `free mode needs no Soniox key`() {
+        modelReady = true
+        configRepository.setSonioxApiKey("")
+        freeMode()
+
+        assertTrue(viewModel.uiState.value.canStart)
+        assertEquals(com.petroff.synchra.config.Mode.FREE, viewModel.uiState.value.mode)
+        viewModel.start()
+        assertEquals(1, speechTranslator.startCount)
+    }
+
+    @Test
+    fun `preparing shows while translation models get ready`() {
+        liveSession.setPreparing(true)
+        assertTrue(viewModel.uiState.value.isPreparing)
+        liveSession.setPreparing(false)
+        assertFalse(viewModel.uiState.value.isPreparing)
     }
 }

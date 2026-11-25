@@ -4,6 +4,12 @@ import android.content.Context
 import androidx.room.Room
 import com.petroff.synchra.asr.MicAudioSource
 import com.petroff.synchra.asr.ModelDownloads
+import com.petroff.synchra.asr.SherpaOnnxAsrEngine
+import com.petroff.synchra.asr.createNemotronRecognizer
+import com.petroff.synchra.local.LocalSpeechTranslator
+import com.petroff.synchra.session.ModeSwitchingSpeechTranslator
+import com.petroff.synchra.translate.MlKitTranslator
+import com.petroff.synchra.translate.mlKitTargetCodes
 import com.petroff.synchra.config.ConfigRepository
 import com.petroff.synchra.config.DefaultConfigRepository
 import com.petroff.synchra.config.EncryptedPrefsSettingsStore
@@ -63,7 +69,19 @@ class AppContainer(private val context: Context) {
 
     val summaryJobs = SummaryJobs(appScope, historyRepository, summarizer, crashReporter)
 
-    val liveSession = LiveSession(buildSpeechTranslator(), configRepository, historyRepository, appScope, crashReporter)
+    val liveSession: LiveSession = LiveSession(
+        ModeSwitchingSpeechTranslator(
+            modeProvider = { configRepository.getConfig().mode },
+            paid = buildSpeechTranslator(),
+            free = buildLocalSpeechTranslator(),
+        ),
+        configRepository,
+        historyRepository,
+        appScope,
+        crashReporter,
+        modelReady = { modelDownloads.store.isReady() },
+        onDeviceTargetCodes = { mlKitTargetCodes() },
+    )
 
     init {
         crashReporter.setEnabled(configRepository.getConfig().crashReportsConsent == true)
@@ -75,6 +93,18 @@ class AppContainer(private val context: Context) {
             }
         }
     }
+
+    // Free mode: recognition and translation on the phone.
+    private fun buildLocalSpeechTranslator(): SpeechTranslator = LocalSpeechTranslator(
+        audioSourceFactory = { MicAudioSource() },
+        recognizerFactory = { language, audio ->
+            SherpaOnnxAsrEngine(audio, { createNemotronRecognizer(modelDownloads.store.paths()) }, language)
+        },
+        translatorFactory = { MlKitTranslator() },
+        scope = appScope,
+        // liveSession is built after this engine; the callback only runs once a session starts.
+        onPreparing = { liveSession.setPreparing(it) },
+    )
 
     fun buildSpeechTranslator(): SpeechTranslator = SonioxSpeechTranslator(
         audioSourceFactory = { MicAudioSource() },

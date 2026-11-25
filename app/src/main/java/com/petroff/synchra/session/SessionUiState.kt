@@ -1,5 +1,7 @@
 package com.petroff.synchra.session
 
+import com.petroff.synchra.config.Mode
+
 data class SessionUiState(
     val isListening: Boolean = false,
     val viewMode: ViewMode = ViewMode.BOTH,
@@ -18,4 +20,8 @@ data class SessionUiState(
     // Whether the current/last recording asked Soniox for a translation (billed). Fixed at
     // Start by the view mode; switching the view afterwards only changes what is shown.
     val translationRequested: Boolean = true,
+    // Free mode: the on-device translation models are being made ready before listening.
+    val isPreparing: Boolean = false,
+    // Mode from Settings, refreshed with canStart; Free mode has no summaries.
+    val mode: Mode = Mode.PAID,
 )
