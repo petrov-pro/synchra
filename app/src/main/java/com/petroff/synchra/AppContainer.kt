@@ -3,6 +3,7 @@ package com.petroff.synchra
 import android.content.Context
 import androidx.room.Room
 import com.petroff.synchra.asr.MicAudioSource
+import com.petroff.synchra.asr.ModelDownloads
 import com.petroff.synchra.config.ConfigRepository
 import com.petroff.synchra.config.DefaultConfigRepository
 import com.petroff.synchra.config.EncryptedPrefsSettingsStore
@@ -21,8 +22,6 @@ import com.petroff.synchra.soniox.SonioxSpeechTranslator
 import com.petroff.synchra.soniox.SpeechTranslator
 import com.petroff.synchra.summary.ClaudeSummarizer
 import com.petroff.synchra.summary.Summarizer
-import java.io.File
-import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -58,6 +57,10 @@ class AppContainer(private val context: Context) {
     // Lives as long as the app process: summary requests outlive the screen that started them.
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    // Free mode's speech model: an older model left in filesDir/model is replaced when this
+    // one is downloaded (ModelStore checks which model the files belong to).
+    val modelDownloads = ModelDownloads(context)
+
     val summaryJobs = SummaryJobs(appScope, historyRepository, summarizer, crashReporter)
 
     val liveSession = LiveSession(buildSpeechTranslator(), configRepository, historyRepository, appScope, crashReporter)
@@ -71,9 +74,6 @@ class AppContainer(private val context: Context) {
                 if (listening) RecordingService.start(context)
             }
         }
-        // The on-device recognition model (~650 MB) from before Soniox; nothing reads it anymore.
-        val legacyModelDir = File(context.filesDir, "model")
-        if (legacyModelDir.exists()) thread(name = "LegacyModelCleanup") { legacyModelDir.deleteRecursively() }
     }
 
     fun buildSpeechTranslator(): SpeechTranslator = SonioxSpeechTranslator(
