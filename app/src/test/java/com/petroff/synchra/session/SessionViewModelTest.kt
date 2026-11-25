@@ -65,6 +65,12 @@ class FakeSpeechTranslator : SpeechTranslator {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
+class RecordingCrashReporter : com.petroff.synchra.diagnostics.CrashReporter {
+    val events = mutableListOf<String>()
+    override fun setEnabled(enabled: Boolean) = Unit
+    override fun log(event: String) { events += event }
+}
+
 class SessionViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
@@ -73,6 +79,7 @@ class SessionViewModelTest {
     private lateinit var historyRepository: FakeHistoryRepository
     private lateinit var liveSession: LiveSession
     private lateinit var viewModel: SessionViewModel
+    private lateinit var crashReporter: RecordingCrashReporter
 
     @Before
     fun setUp() {
@@ -84,7 +91,10 @@ class SessionViewModelTest {
         )
         configRepository.setSonioxApiKey("snx-test")
         historyRepository = FakeHistoryRepository()
-        liveSession = LiveSession(speechTranslator, configRepository, historyRepository, CoroutineScope(dispatcher))
+        crashReporter = RecordingCrashReporter()
+        liveSession = LiveSession(
+            speechTranslator, configRepository, historyRepository, CoroutineScope(dispatcher), crashReporter,
+        )
         viewModel = SessionViewModel(liveSession)
     }
 
@@ -333,5 +343,22 @@ class SessionViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals("Russian", historyRepository.addedRecords.single().targetLanguageName)
+    }
+
+    @Test
+    fun `crash reports get the session steps but never what was said or the context`() {
+        configRepository.setGeneralContext("Secret project Falcon")
+        configRepository.setConversationContext("Meeting with Maria")
+
+        viewModel.start()
+        speechTranslator.emit("Top secret words", "Совершенно секретно")
+        speechTranslator.fail("Soniox: connection lost")
+        viewModel.stop()
+        speechTranslator.finish("Top secret words", "Совершенно секретно")
+
+        assertEquals(
+            listOf("session start en-ru translate=true", "session error: Soniox: connection lost", "session stop"),
+            crashReporter.events,
+        )
     }
 }

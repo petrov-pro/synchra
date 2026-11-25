@@ -21,6 +21,8 @@ data class AppConfig(
     // else here, but is meant to be replaced each new conversation.
     val conversationContext: String = "",
     val sonioxApiKey: String? = null,
+    // Anonymous crash reports (Crashlytics): null until the user has answered the question.
+    val crashReportsConsent: Boolean? = null,
 ) {
     val selectedLanguagePair: LanguagePair
         get() = LanguagePair(sourceLanguage.code, sourceLanguage.name, targetLanguage.code, targetLanguage.name)

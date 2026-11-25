@@ -162,4 +162,15 @@ class ConfigRepositoryTest {
 
         assertEquals(MAX_GENERAL_CONTEXT_CHARS, repo.getConfig().generalContext.length)
     }
+
+    @Test
+    fun `crash reports are off and not yet asked about until the user answers`() {
+        assertNull(repo.getConfig().crashReportsConsent)
+
+        repo.setCrashReportsConsent(true)
+        assertEquals(true, repo.getConfig().crashReportsConsent)
+
+        repo.setCrashReportsConsent(false)
+        assertEquals(false, repo.getConfig().crashReportsConsent)
+    }
 }

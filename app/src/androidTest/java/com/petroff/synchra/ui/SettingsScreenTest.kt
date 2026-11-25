@@ -268,4 +268,25 @@ class SettingsScreenTest {
 
         assertTrue(opened!!.startsWith("https://chatgpt.com/?q=Instructions%20for%20using%20Claude"))
     }
+
+    @Test
+    fun theCrashReportsSwitchAppliesAtOnce() {
+        var crashReports: Boolean? = null
+        composeRule.setContent {
+            SettingsScreen(
+                currentSonioxApiKey = null,
+                currentApiKey = null,
+                currentGeneralContext = "",
+                onSaveSonioxApiKey = {},
+                onSaveApiKey = {},
+                onSaveGeneralContext = {},
+                onBack = {},
+                crashReportsEnabled = false,
+                onCrashReportsChange = { crashReports = it },
+            )
+        }
+
+        composeRule.onNodeWithTag("crashReportsSwitch").performScrollTo().performClick()
+        assertEquals(true, crashReports)
+    }
 }

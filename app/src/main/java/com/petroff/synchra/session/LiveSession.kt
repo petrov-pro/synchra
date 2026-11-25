@@ -1,5 +1,7 @@
 package com.petroff.synchra.session
 
+import com.petroff.synchra.diagnostics.CrashReporter
+import com.petroff.synchra.diagnostics.NoOpCrashReporter
 import com.petroff.synchra.config.ConfigRepository
 import com.petroff.synchra.config.LanguagePair
 import com.petroff.synchra.history.ConversationRecord
@@ -26,6 +28,8 @@ class LiveSession(
     private val historyRepository: HistoryRepository,
     // Outlives screens: saving the conversation must not depend on one being open.
     private val scope: CoroutineScope,
+    // Gets the steps only (start, stop, errors), never the texts or contexts.
+    private val crashReporter: CrashReporter = NoOpCrashReporter,
 ) {
 
     private val _uiState = MutableStateFlow(SessionUiState())
@@ -77,6 +81,7 @@ class LiveSession(
         }
         val pair = config.selectedLanguagePair
         val translate = _uiState.value.viewMode != ViewMode.TRANSCRIPTION_ONLY
+        crashReporter.log("session start ${pair.sourceCode}-${pair.targetCode} translate=$translate")
         _uiState.update { it.copy(translationRequested = translate) }
         val userContext = config.generalContext
         val conversationContext = config.conversationContext
@@ -97,9 +102,11 @@ class LiveSession(
                 }
             },
             onError = { message ->
+                crashReporter.log("session error: $message")
                 if (session == currentSession) _uiState.update { it.copy(errorMessage = message) }
             },
             onAutoStopped = {
+                crashReporter.log("session auto-stopped after silence")
                 if (session == currentSession) {
                     _uiState.update { it.copy(statusMessage = "Stopped after 5 minutes of silence.") }
                 }
@@ -127,6 +134,7 @@ class LiveSession(
     fun stop() {
         // History is saved from start's onFinished, once Soniox has flushed the last phrase and
         // its translation; flip isListening now so the UI responds immediately.
+        crashReporter.log("session stop")
         speechTranslator.stop()
         _uiState.update { it.copy(isListening = false, isSending = false) }
     }

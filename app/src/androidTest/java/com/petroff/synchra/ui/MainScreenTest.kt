@@ -443,5 +443,45 @@ class MainScreenTest {
 
         composeRule.onNodeWithText("2000 / 2000").assertExists()
     }
-}
 
+    @Test
+    fun crashReportConsentIsAskedOnceAndAnswered() {
+        var answer: Boolean? = null
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(),
+                sourceLanguage = english,
+                targetLanguage = russian,
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+                askCrashReportsConsent = true,
+                onCrashReportsConsent = { answer = it },
+            )
+        }
+
+        composeRule.onNodeWithText("Send crash reports?").assertExists()
+        composeRule.onNodeWithText("Don't send").performClick()
+        assertEquals(false, answer)
+    }
+
+    @Test
+    fun crashReportConsentIsNotAskedOnceAnswered() {
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(),
+                sourceLanguage = english,
+                targetLanguage = russian,
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Send crash reports?").assertDoesNotExist()
+    }
+}

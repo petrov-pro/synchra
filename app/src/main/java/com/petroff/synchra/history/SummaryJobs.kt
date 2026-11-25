@@ -1,5 +1,7 @@
 package com.petroff.synchra.history
 
+import com.petroff.synchra.diagnostics.CrashReporter
+import com.petroff.synchra.diagnostics.NoOpCrashReporter
 import com.petroff.synchra.summary.ConversationSummary
 import com.petroff.synchra.summary.Summarizer
 import com.petroff.synchra.summary.SummaryException
@@ -17,6 +19,7 @@ class SummaryJobs(
     private val scope: CoroutineScope,
     private val historyRepository: HistoryRepository,
     private val summarizer: Summarizer,
+    private val crashReporter: CrashReporter = NoOpCrashReporter,
 ) {
     private val inFlight = mutableMapOf<String, Deferred<Result<ConversationSummary>>>()
 
@@ -27,10 +30,14 @@ class SummaryJobs(
     fun summarize(record: ConversationRecord): Deferred<Result<ConversationSummary>> =
         inFlight.getOrPut(record.id) {
             scope.async {
+                crashReporter.log("summary requested")
                 val result = runCatching {
                     summarizeWithRetries(record).onSuccess {
                         historyRepository.setSummary(record.id, it.title, it.summary)
                     }.getOrThrow()
+                }
+                result.exceptionOrNull()?.let { e ->
+                    crashReporter.log("summary failed: ${(e as? SummaryException)?.kind ?: e.javaClass.simpleName}")
                 }
                 synchronized(this@SummaryJobs) { inFlight.remove(record.id) }
                 result

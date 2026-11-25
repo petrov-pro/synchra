@@ -90,6 +90,12 @@ fun SynchraApp(container: AppContainer) {
                                 }
                             },
                             onViewModeChange = sessionViewModel::setViewMode,
+                            askCrashReportsConsent = config.crashReportsConsent == null,
+                            onCrashReportsConsent = {
+                                container.configRepository.setCrashReportsConsent(it)
+                                container.crashReporter.setEnabled(it)
+                                config = container.configRepository.getConfig()
+                            },
                             onOpenSettings = {
                                 focusApiKeyOnSettingsOpen = false
                                 navController.navigateOnce("settings")
@@ -187,6 +193,12 @@ fun SynchraApp(container: AppContainer) {
                             },
                             onTargetLanguageChange = {
                                 container.configRepository.setTargetLanguage(it.code)
+                                config = container.configRepository.getConfig()
+                            },
+                            crashReportsEnabled = config.crashReportsConsent == true,
+                            onCrashReportsChange = {
+                                container.configRepository.setCrashReportsConsent(it)
+                                container.crashReporter.setEnabled(it)
                                 config = container.configRepository.getConfig()
                             },
                             onSwapLanguages = {

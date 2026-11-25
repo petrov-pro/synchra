@@ -11,6 +11,7 @@ interface ConfigRepository {
     fun setGeneralContext(context: String)
     fun setConversationContext(context: String)
     fun setSonioxApiKey(key: String)
+    fun setCrashReportsConsent(consent: Boolean)
 }
 
 class DefaultConfigRepository(
@@ -28,6 +29,11 @@ class DefaultConfigRepository(
         generalContext = store.getString(KEY_GENERAL_CONTEXT, "").take(MAX_GENERAL_CONTEXT_CHARS),
         conversationContext = store.getString(KEY_CONVERSATION_CONTEXT, "").take(MAX_CONVERSATION_CONTEXT_CHARS),
         sonioxApiKey = store.getString(KEY_SONIOX_API_KEY, "").ifBlank { null },
+        crashReportsConsent = when (store.getString(KEY_CRASH_REPORTS, "")) {
+            CONSENT_YES -> true
+            CONSENT_NO -> false
+            else -> null
+        },
     )
 
     override fun setApiKey(key: String) {
@@ -63,6 +69,9 @@ class DefaultConfigRepository(
     // Keys go into HTTP headers, where a pasted line break is illegal.
     override fun setSonioxApiKey(key: String) = store.putString(KEY_SONIOX_API_KEY, key.trim())
 
+    override fun setCrashReportsConsent(consent: Boolean) =
+        store.putString(KEY_CRASH_REPORTS, if (consent) CONSENT_YES else CONSENT_NO)
+
     private fun source() = languageForCode(store.getString(KEY_SOURCE_LANGUAGE, DEFAULT_SOURCE_LANGUAGE))
         ?: languageForCode(DEFAULT_SOURCE_LANGUAGE)!!
 
@@ -94,5 +103,8 @@ class DefaultConfigRepository(
         private const val KEY_CONVERSATION_CONTEXT = "conversation_context"
         private const val KEY_SONIOX_API_KEY = "soniox_api_key"
         private const val LIST_SEPARATOR = ","
+        private const val KEY_CRASH_REPORTS = "crash_reports"
+        private const val CONSENT_YES = "yes"
+        private const val CONSENT_NO = "no"
     }
 }

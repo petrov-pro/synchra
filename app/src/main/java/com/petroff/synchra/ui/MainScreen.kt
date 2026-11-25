@@ -60,8 +60,15 @@ fun MainScreen(
     onApiKeyRequired: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
     onSummary: () -> Unit = {},
+    // Asked once, on the first start; the answer can be changed in Settings.
+    askCrashReportsConsent: Boolean = false,
+    onCrashReportsConsent: (Boolean) -> Unit = {},
 ) {
     var showContextDialog by remember { mutableStateOf(false) }
+
+    if (askCrashReportsConsent) {
+        CrashReportsConsentDialog(onAnswer = onCrashReportsConsent)
+    }
 
     if (showContextDialog) {
         ContextDialog(
@@ -177,6 +184,29 @@ fun MainScreen(
             )
         }
     }
+}
+
+@Composable
+private fun CrashReportsConsentDialog(onAnswer: (Boolean) -> Unit) {
+    AlertDialog(
+        // Not dismissible by tapping outside: the question needs an answer, either one.
+        onDismissRequest = {},
+        title = { Text("Send crash reports?") },
+        text = {
+            Text(
+                "If Synchra crashes, it can send an anonymous report (device model, Android " +
+                    "version and what the app was doing) so the bug can be fixed. Your " +
+                    "conversations, contexts and API keys are never sent. You can change this " +
+                    "in Settings.",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onAnswer(true) }) { Text("Send") }
+        },
+        dismissButton = {
+            TextButton(onClick = { onAnswer(false) }) { Text("Don't send") }
+        },
+    )
 }
 
 @Composable

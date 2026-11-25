@@ -6,6 +6,8 @@ import com.petroff.synchra.asr.MicAudioSource
 import com.petroff.synchra.config.ConfigRepository
 import com.petroff.synchra.config.DefaultConfigRepository
 import com.petroff.synchra.config.EncryptedPrefsSettingsStore
+import com.petroff.synchra.diagnostics.CrashReporter
+import com.petroff.synchra.diagnostics.FirebaseCrashReporter
 import com.petroff.synchra.history.HistoryRepository
 import com.petroff.synchra.history.MIGRATION_1_2
 import com.petroff.synchra.history.MIGRATION_2_3
@@ -33,6 +35,8 @@ class AppContainer(private val context: Context) {
 
     private val httpClient = OkHttpClient()
 
+    val crashReporter: CrashReporter = FirebaseCrashReporter.createOrNoOp(context)
+
     private val database: SynchraDatabase = Room.databaseBuilder(
         context,
         SynchraDatabase::class.java,
@@ -54,11 +58,12 @@ class AppContainer(private val context: Context) {
     // Lives as long as the app process: summary requests outlive the screen that started them.
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val summaryJobs = SummaryJobs(appScope, historyRepository, summarizer)
+    val summaryJobs = SummaryJobs(appScope, historyRepository, summarizer, crashReporter)
 
-    val liveSession = LiveSession(buildSpeechTranslator(), configRepository, historyRepository, appScope)
+    val liveSession = LiveSession(buildSpeechTranslator(), configRepository, historyRepository, appScope, crashReporter)
 
     init {
+        crashReporter.setEnabled(configRepository.getConfig().crashReportsConsent == true)
         // A session that is recording needs the foreground service, or Android cuts the
         // microphone as soon as the app leaves the screen.
         appScope.launch {

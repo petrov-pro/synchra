@@ -1,5 +1,7 @@
 package com.petroff.synchra.ui
 
+import androidx.compose.ui.platform.testTag
+import androidx.compose.material3.Switch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -71,6 +73,9 @@ fun SettingsScreen(
     onSwapLanguages: () -> Unit = {},
     // Opens a help link; the browser by default.
     onOpenLink: ((String) -> Unit)? = null,
+    // Applied at once, like the languages.
+    crashReportsEnabled: Boolean = false,
+    onCrashReportsChange: (Boolean) -> Unit = {},
 ) {
     // Taken here, not inside the help dialog: a dialog is its own window with its own handler.
     val uriHandler = LocalUriHandler.current
@@ -234,6 +239,25 @@ fun SettingsScreen(
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+
+            FieldRow(
+                field = "Send crash reports",
+                helpText = "If Synchra crashes, an anonymous report goes to the developer through " +
+                    "Firebase Crashlytics: device model, Android version and the app's last steps " +
+                    "(e.g. \"session started\"). Conversations, contexts and API keys are never sent.",
+                onShowHelp = { helpDialog = it },
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Send crash reports", modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = crashReportsEnabled,
+                        onCheckedChange = onCrashReportsChange,
+                        modifier = Modifier.testTag("crashReportsSwitch"),
+                    )
+                }
             }
 
             Button(onClick = {

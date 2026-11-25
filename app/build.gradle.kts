@@ -6,6 +6,14 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// Firebase (crash reports) needs app/google-services.json from the Firebase console. Without it
+// the app builds and runs as before, just without crash reports (FirebaseCrashReporter.createOrNoOp).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+    // Uploads R8's mapping file, so release stack traces come back readable.
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -27,6 +35,31 @@ android {
             "String", "DEFAULT_API_BASE_URL",
             "\"${localProps.getProperty("synchra.apiBaseUrl", "https://api.anthropic.com")}\""
         )
+    }
+
+    // Upload key for Play, from local.properties (never committed):
+    //   synchra.keystore=/path/to/upload.jks, synchra.keystorePassword, synchra.keyAlias, synchra.keyPassword
+    // Without it a release build is signed with the debug key: fine for testing on a phone,
+    // refused by Play.
+    val uploadKeystore = localProps.getProperty("synchra.keystore")
+    signingConfigs {
+        if (uploadKeystore != null) {
+            create("upload") {
+                storeFile = file(uploadKeystore)
+                storePassword = localProps.getProperty("synchra.keystorePassword")
+                keyAlias = localProps.getProperty("synchra.keyAlias")
+                keyPassword = localProps.getProperty("synchra.keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
+        }
     }
 
     buildFeatures {
@@ -73,6 +106,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    implementation(platform("com.google.firebase:firebase-bom:35.2.0"))
+    implementation("com.google.firebase:firebase-crashlytics")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.anthropic:anthropic-java:3.8.0")
