@@ -4,7 +4,9 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.performClick
 import com.petroff.synchra.history.ConversationRecord
 import com.petroff.synchra.history.ConversationUiState
@@ -156,5 +158,20 @@ class ConversationScreenTest {
         composeRule.onNodeWithContentDescription("Summary").assertExists()
         composeRule.onNodeWithText("Summary").assertDoesNotExist()
     }
-}
 
+    @Test
+    fun theRecordedLanguagesAreShownShortInTheTopBar() {
+        show(ConversationUiState(record = record(summary = "Итог"), view = ConversationView.SUMMARY))
+
+        composeRule.onNodeWithTag("languagePair").assertTextEquals("En-Ru")
+        composeRule.onNodeWithContentDescription("English → Russian").assertExists()
+        composeRule.onNodeWithTag("languagePairDivider").assertExists()
+    }
+
+    @Test
+    fun theRecordedLanguagesAreShownInTheOriginalViewToo() {
+        show(ConversationUiState(record = record(), view = ConversationView.ORIGINAL))
+
+        composeRule.onNodeWithTag("languagePair").assertTextEquals("En-Ru")
+    }
+}

@@ -81,7 +81,19 @@ fun languageForCode(code: String): Language? = SUPPORTED_LANGUAGES.firstOrNull {
 
 /** The pair as the top bar shows it: capitalized codes, e.g. "En-Ru". */
 fun shortPairLabel(source: Language, target: Language): String =
-    "${source.code.replaceFirstChar { it.uppercase() }}-${target.code.replaceFirstChar { it.uppercase() }}"
+    "${source.code.shortForm()}-${target.code.shortForm()}"
+
+/**
+ * The same label for a saved conversation, which keeps only the English names. A name no
+ * longer in [SUPPORTED_LANGUAGES] falls back to its first two letters.
+ */
+fun shortPairLabel(sourceName: String, targetName: String): String =
+    "${shortFormOfName(sourceName)}-${shortFormOfName(targetName)}"
+
+private fun shortFormOfName(name: String): String =
+    (SUPPORTED_LANGUAGES.firstOrNull { it.name == name }?.code ?: name.take(2).lowercase()).shortForm()
+
+private fun String.shortForm(): String = replaceFirstChar { it.uppercase() }
 
 /**
  * Languages matching [query] by code, English name or own name, ignoring case: the exact code

@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.petroff.synchra.config.shortPairLabel
 import com.petroff.synchra.history.ConversationUiState
 import com.petroff.synchra.history.ConversationView
 import com.petroff.synchra.history.displayDateTime
@@ -74,6 +75,14 @@ fun ConversationScreen(
                     }
                 },
                 actions = {
+                    // The languages the conversation was recorded in, as on the main screen.
+                    record?.let {
+                        LanguagePairLabel(
+                            shortPairLabel(it.sourceLanguageName, it.targetLanguageName),
+                            it.sourceLanguageName,
+                            it.targetLanguageName,
+                        )
+                    }
                     // Same Summary icon as on the main screen; Original switches back to the full texts.
                     if (state.view == ConversationView.SUMMARY) {
                         IconButton(onClick = onOriginalClick) {

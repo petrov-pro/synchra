@@ -33,8 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -92,23 +90,11 @@ fun MainScreen(
                     )
                 },
                 actions = {
-                    // Chosen in Settings; a recording keeps the languages it started with. Short
-                    // to fit the bar; screen readers get the full names.
-                    val fullPair = "${sourceLanguage.name} → ${targetLanguage.name}"
-                    Text(
+                    // Chosen in Settings; a recording keeps the languages it started with.
+                    LanguagePairLabel(
                         shortPairLabel(sourceLanguage, targetLanguage),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp)
-                            .semantics { contentDescription = fullPair }
-                            .testTag("languagePair"),
-                    )
-                    VerticalDivider(
-                        modifier = Modifier
-                            .height(24.dp)
-                            .padding(horizontal = 4.dp)
-                            .testTag("languagePairDivider"),
+                        sourceLanguage.name,
+                        targetLanguage.name,
                     )
                     // Saved conversations: a block of its own, set apart from the session controls.
                     IconButton(onClick = onOpenHistory) {

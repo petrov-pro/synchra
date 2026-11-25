@@ -52,4 +52,11 @@ class LanguagesTest {
         assertEquals("En-Ru", shortPairLabel(languageForCode("en")!!, languageForCode("ru")!!))
         assertEquals("Zh-Uk", shortPairLabel(languageForCode("zh")!!, languageForCode("uk")!!))
     }
+
+    @Test
+    fun `a saved pair is shown short from its stored names`() {
+        assertEquals("En-Ru", shortPairLabel("English", "Russian"))
+        // A name no longer in the list still gets a label: its first two letters.
+        assertEquals("En-Kl", shortPairLabel("English", "Klingon"))
+    }
 }
