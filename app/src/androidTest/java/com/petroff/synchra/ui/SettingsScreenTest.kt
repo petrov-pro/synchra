@@ -395,8 +395,11 @@ class SettingsScreenTest {
     fun globalContextIsOnlyInPaidMode() {
         showSettings(com.petroff.synchra.config.Mode.FREE)
         composeRule.onNodeWithText("Global context").assertDoesNotExist()
+        // Its divider goes with it, or two lines would stand back to back.
+        composeRule.onNodeWithTag("globalContextDivider").assertDoesNotExist()
 
         composeRule.onNodeWithText("Paid").performClick()
         composeRule.onNodeWithText("Global context").performScrollTo().assertExists()
+        composeRule.onNodeWithTag("globalContextDivider").assertExists()
     }
 }

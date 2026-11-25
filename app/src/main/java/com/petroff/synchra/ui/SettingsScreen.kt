@@ -277,8 +277,11 @@ fun SettingsScreen(
 
             // Set apart from the connection/session fields above — general context is a
             // different kind of setting (standing background for the AI, not a connection or
-            // session parameter) — with extra breathing room and a divider ahead of it.
-            HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+            // session parameter) — with extra breathing room and a divider ahead of it. Free mode
+            // has no context, so neither the field nor its divider.
+            if (modeField == Mode.PAID) {
+                HorizontalDivider(modifier = Modifier.padding(top = 8.dp).testTag("globalContextDivider"))
+            }
 
             // Standing context, sent with every session ahead of the per-conversation one from the
             // Main screen's Context button — see LiveSession.start.
