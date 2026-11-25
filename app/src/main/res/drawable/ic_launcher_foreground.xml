@@ -1,9 +1,14 @@
+<!-- Synchra's S, centred in the 66dp safe zone of the 108dp adaptive-icon canvas. The S has
+     the Start button's colour (Material 3 primary), on the "Both" button's background. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,24 C68.36,24 80,35.64 80,50 C80,64.36 68.36,76 54,76 C39.64,76 28,64.36 28,50 C28,35.64 39.64,24 54,24 Z M54,34 C45.16,34 38,41.16 38,50 C38,58.84 45.16,66 54,66 C62.84,66 70,58.84 70,50 C70,41.16 62.84,34 54,34 Z" />
+        android:strokeColor="@color/ic_launcher_foreground"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M67,40 C64,35.5 59,33 54,33 C46.5,33 41,37.5 41,44 C41,50.5 47,52 54,54 C61,56 67,57.5 67,64 C67,70.5 61.5,75 54,75 C49,75 44,72.5 41,68" />
 </vector>

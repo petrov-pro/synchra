@@ -1,3 +1,5 @@
 <resources>
-    <color name="ic_launcher_background">#3F51B5</color>
+    <!-- Background: the selected view-mode button ("Both"); the S: the Start button. -->
+    <color name="ic_launcher_background">#E8DEF8</color>
+    <color name="ic_launcher_foreground">#6750A4</color>
 </resources>
