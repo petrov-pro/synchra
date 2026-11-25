@@ -30,15 +30,21 @@ import okhttp3.OkHttpClient
 sealed interface ModelState {
     data object NotDownloaded : ModelState
     data class Downloading(val percent: Int) : ModelState
-    /** Downloaded; the archive is being unpacked (takes a minute or two on a phone). */
-    data object Unpacking : ModelState
+    /** Downloaded; the archive is being unpacked (a few minutes on a phone). */
+    data class Unpacking(val percent: Int) : ModelState
     data object Ready : ModelState
     data object Failed : ModelState
 }
 
 /** [work]: state of the latest download work, null when there was none. */
-fun modelStateOf(ready: Boolean, work: WorkInfo.State?, percent: Int, unpacking: Boolean = false): ModelState = when {
-    work == WorkInfo.State.RUNNING && unpacking -> ModelState.Unpacking
+fun modelStateOf(
+    ready: Boolean,
+    work: WorkInfo.State?,
+    percent: Int,
+    unpacking: Boolean = false,
+    unpackPercent: Int = 0,
+): ModelState = when {
+    work == WorkInfo.State.RUNNING && unpacking -> ModelState.Unpacking(unpackPercent)
     work == WorkInfo.State.RUNNING || work == WorkInfo.State.ENQUEUED || work == WorkInfo.State.BLOCKED ->
         ModelState.Downloading(percent)
     ready -> ModelState.Ready
@@ -60,15 +66,18 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
         if (store.isReady()) return@coroutineScope Result.success()
         val percent = AtomicInteger(0)
         val unpacking = AtomicBoolean(false)
+        val unpackPercent = AtomicInteger(0)
         setForeground(foregroundInfo(0))
         val reporter = launch {
-            var shown = -1 to false
+            var shown = Triple(-1, false, -1)
             while (true) {
-                val now = percent.get() to unpacking.get()
+                val now = Triple(percent.get(), unpacking.get(), unpackPercent.get())
                 if (now != shown) {
                     shown = now
-                    setProgress(workDataOf(KEY_PROGRESS to now.first, KEY_UNPACKING to now.second))
-                    setForeground(foregroundInfo(now.first, now.second))
+                    setProgress(
+                        workDataOf(KEY_PROGRESS to now.first, KEY_UNPACKING to now.second, KEY_UNPACK_PROGRESS to now.third),
+                    )
+                    setForeground(foregroundInfo(now.first, now.second, now.third))
                 }
                 delay(500)
             }
@@ -82,7 +91,9 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
                 }
                 unpacking.set(true)
                 try {
-                    ModelArchiveExtractor.extract(store.archivePart, speechModelDir(applicationContext), MODEL_FILES.toSet())
+                    ModelArchiveExtractor.extract(store.archivePart, speechModelDir(applicationContext), MODEL_FILES.toSet()) { read, total ->
+                        if (total > 0) unpackPercent.set((read * 100 / total).toInt())
+                    }
                 } finally {
                     // Unpacked or broken, the archive is not needed again: a broken one would
                     // otherwise be "resumed" forever. The next Download fetches it anew.
@@ -100,14 +111,14 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
         }
     }
 
-    private fun foregroundInfo(percent: Int, unpacking: Boolean = false): ForegroundInfo {
+    private fun foregroundInfo(percent: Int, unpacking: Boolean = false, unpackPercent: Int = 0): ForegroundInfo {
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Speech model download", NotificationManager.IMPORTANCE_LOW))
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle(if (unpacking) "Unpacking speech model" else "Downloading speech model")
-            .setContentText(if (unpacking) "A minute or two" else "$percent%")
-            .setProgress(100, percent, unpacking)
+            .setContentText(if (unpacking) "$unpackPercent%" else "$percent%")
+            .setProgress(100, if (unpacking) unpackPercent else percent, false)
             .setOngoing(true)
             .setSilent(true)
             .build()
@@ -121,6 +132,7 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
     companion object {
         const val KEY_PROGRESS = "progress"
         const val KEY_UNPACKING = "unpacking"
+        const val KEY_UNPACK_PROGRESS = "unpackProgress"
         private const val CHANNEL_ID = "model_download"
         private const val NOTIFICATION_ID = 2
     }
@@ -140,7 +152,8 @@ class ModelDownloads(private val context: Context) {
             val info = infos.lastOrNull()
             val percent = info?.progress?.getInt(ModelDownloadWorker.KEY_PROGRESS, 0) ?: 0
             val unpacking = info?.progress?.getBoolean(ModelDownloadWorker.KEY_UNPACKING, false) ?: false
-            modelStateOf(store.isReady(), info?.state, percent, unpacking)
+            val unpackPercent = info?.progress?.getInt(ModelDownloadWorker.KEY_UNPACK_PROGRESS, 0) ?: 0
+            modelStateOf(store.isReady(), info?.state, percent, unpacking, unpackPercent)
         }
 
     fun start() {

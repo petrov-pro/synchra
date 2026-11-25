@@ -386,8 +386,8 @@ class SettingsScreenTest {
 
     @Test
     fun unpackingIsShownAfterTheDownload() {
-        showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Unpacking)
-        composeRule.onNodeWithText("Unpacking… (a minute or two)").assertExists()
+        showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Unpacking(42))
+        composeRule.onNodeWithText("Unpacking 42%").assertExists()
         composeRule.onNodeWithText("Cancel").assertExists()
     }
 }

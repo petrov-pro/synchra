@@ -31,6 +31,6 @@ class ModelStateTest {
 
     @Test
     fun `unpacking after the download shows as Unpacking`() {
-        assertEquals(ModelState.Unpacking, modelStateOf(ready = false, work = WorkInfo.State.RUNNING, percent = 99, unpacking = true))
+        assertEquals(ModelState.Unpacking(42), modelStateOf(ready = false, work = WorkInfo.State.RUNNING, percent = 99, unpacking = true, unpackPercent = 42))
     }
 }

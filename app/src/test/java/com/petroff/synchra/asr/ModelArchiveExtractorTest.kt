@@ -36,4 +36,18 @@ class ModelArchiveExtractorTest {
         assertEquals(setOf("tokens.txt"), dest.list()!!.toSet())
         assertEquals("a 1", File(dest, "tokens.txt").readText())
     }
+
+    @Test
+    fun `reports progress through the archive up to its full size`() {
+        val src = archive("d/tokens.txt" to "x".repeat(200_000), "d/README.md" to "readme")
+        val seen = mutableListOf<Long>()
+
+        ModelArchiveExtractor.extract(src, tmp.newFolder("out2"), setOf("tokens.txt")) { read, total ->
+            assertEquals(src.length(), total)
+            seen += read
+        }
+
+        assertEquals(src.length(), seen.last())
+        assertEquals(seen.sorted(), seen)
+    }
 }
