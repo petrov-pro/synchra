@@ -521,4 +521,16 @@ class MainScreenTest {
         showMain(SessionUiState(mode = com.petroff.synchra.config.Mode.FREE, canStart = false, startHint = "Download the speech model in Settings"))
         composeRule.onNodeWithText("Download the speech model in Settings").assertExists()
     }
+
+    @Test
+    fun contextIsHiddenInFreeMode() {
+        showMain(SessionUiState(mode = com.petroff.synchra.config.Mode.FREE))
+        composeRule.onNodeWithContentDescription("Context").assertDoesNotExist()
+    }
+
+    @Test
+    fun contextIsShownInPaidMode() {
+        showMain(SessionUiState(mode = com.petroff.synchra.config.Mode.PAID))
+        composeRule.onNodeWithContentDescription("Context").assertExists()
+    }
 }

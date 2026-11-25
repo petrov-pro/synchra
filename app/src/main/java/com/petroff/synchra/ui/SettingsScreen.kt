@@ -282,7 +282,8 @@ fun SettingsScreen(
 
             // Standing context, sent with every session ahead of the per-conversation one from the
             // Main screen's Context button — see LiveSession.start.
-            FieldRow(
+            // Free mode's on-device engines take no context.
+            if (modeField == Mode.PAID) FieldRow(
                 field = "Global context",
                 helpText = "Goes with every conversation: about you, your company, team, product, " +
                     "its names and terms. It helps Soniox recognize and translate, and Claude " +
@@ -349,6 +350,7 @@ private fun SpeechModelRow(
     onDelete: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Speech model", style = MaterialTheme.typography.titleSmall)
         Row(verticalAlignment = Alignment.CenterVertically) {
             val status = when (state) {
                 ModelState.NotDownloaded -> "Not downloaded (≈650 MB)"

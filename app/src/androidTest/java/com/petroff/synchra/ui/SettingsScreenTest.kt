@@ -390,4 +390,13 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Unpacking 42%").assertExists()
         composeRule.onNodeWithText("Cancel").assertExists()
     }
+
+    @Test
+    fun globalContextIsOnlyInPaidMode() {
+        showSettings(com.petroff.synchra.config.Mode.FREE)
+        composeRule.onNodeWithText("Global context").assertDoesNotExist()
+
+        composeRule.onNodeWithText("Paid").performClick()
+        composeRule.onNodeWithText("Global context").performScrollTo().assertExists()
+    }
 }

@@ -125,8 +125,11 @@ fun MainScreen(
                     // Context helps Soniox recognize and translate, in every view mode. Disabled
                     // while listening (same rule as the view-mode switch below: context only
                     // takes effect at the start of a session).
-                    IconButton(onClick = { showContextDialog = true }, enabled = !uiState.isListening) {
-                        Icon(Icons.AutoMirrored.Filled.SpeakerNotes, contentDescription = "Context")
+                    // Free mode's on-device engines take no context, so there is nothing to set.
+                    if (uiState.mode != Mode.FREE) {
+                        IconButton(onClick = { showContextDialog = true }, enabled = !uiState.isListening) {
+                            Icon(Icons.AutoMirrored.Filled.SpeakerNotes, contentDescription = "Context")
+                        }
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "Settings")
