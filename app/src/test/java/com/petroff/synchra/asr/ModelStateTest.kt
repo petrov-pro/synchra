@@ -28,4 +28,9 @@ class ModelStateTest {
         assertEquals(ModelState.NotDownloaded, modelStateOf(ready = false, work = WorkInfo.State.CANCELLED, percent = 12))
         assertEquals(ModelState.NotDownloaded, modelStateOf(ready = false, work = null, percent = 0))
     }
+
+    @Test
+    fun `unpacking after the download shows as Unpacking`() {
+        assertEquals(ModelState.Unpacking, modelStateOf(ready = false, work = WorkInfo.State.RUNNING, percent = 99, unpacking = true))
+    }
 }

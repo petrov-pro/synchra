@@ -381,4 +381,11 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Paid").assertIsNotEnabled()
         composeRule.onNodeWithText("Stop recording first").assertExists()
     }
+
+    @Test
+    fun unpackingIsShownAfterTheDownload() {
+        showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Unpacking)
+        composeRule.onNodeWithText("Unpacking… (a minute or two)").assertExists()
+        composeRule.onNodeWithText("Cancel").assertExists()
+    }
 }

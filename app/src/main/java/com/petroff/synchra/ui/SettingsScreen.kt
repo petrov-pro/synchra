@@ -353,19 +353,21 @@ private fun SpeechModelRow(
             val status = when (state) {
                 ModelState.NotDownloaded -> "Not downloaded (≈650 MB)"
                 is ModelState.Downloading -> "Downloading ${state.percent}%"
+                ModelState.Unpacking -> "Unpacking… (a minute or two)"
                 ModelState.Ready -> "Ready"
                 ModelState.Failed -> "Download failed — tap Download to resume"
             }
             Text(status, modifier = Modifier.weight(1f).testTag("speechModelStatus"))
             when (state) {
                 ModelState.NotDownloaded, ModelState.Failed -> TextButton(onClick = onDownload) { Text("Download") }
-                is ModelState.Downloading -> TextButton(onClick = onCancel) { Text("Cancel") }
+                is ModelState.Downloading, ModelState.Unpacking -> TextButton(onClick = onCancel) { Text("Cancel") }
                 ModelState.Ready -> TextButton(onClick = onDelete, enabled = !isRecording) { Text("Delete") }
             }
         }
         if (state is ModelState.Downloading) {
             LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
         }
+        if (state == ModelState.Unpacking) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         if (state != ModelState.Ready) {
             Text("≈650 MB, Wi-Fi recommended", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
