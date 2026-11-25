@@ -11,6 +11,14 @@ translation as you talk, without waiting for the end of a sentence.
 
 ## What it does
 
+- **Free and paid modes,** switched in Settings:
+  - **Free** — no account and no keys. Speech is recognized on the phone (NVIDIA Nemotron 3.5,
+    28 languages, a one-time ≈650 MB download) and translated on the phone (Google ML Kit,
+    ≈30 MB per language). Nothing about the conversation leaves the phone. Translation is
+    simpler than in Paid, and there are no summaries.
+  - **Paid** — Soniox recognizes and translates in the cloud (60 languages, best quality),
+    Claude writes summaries. Needs your own API keys.
+
 - **Live transcription and translation.** The source and target languages are chosen in
   Settings from the 60 languages Soniox supports; the main screen shows the pair in short form
   (for example `En-Ru`).
@@ -32,7 +40,9 @@ translation as you talk, without waiting for the end of a sentence.
 | Language & platform | Kotlin, Android (minSdk 26, targetSdk 37), Java 17 |
 | UI | Jetpack Compose, Material 3, Navigation Compose |
 | Architecture | ViewModels + Kotlin coroutines/Flow, a small manual DI container (`AppContainer`) |
-| Speech recognition & translation | [Soniox](https://soniox.com) real-time API over WebSocket (OkHttp) |
+| Speech recognition & translation (Paid) | [Soniox](https://soniox.com) real-time API over WebSocket (OkHttp) |
+| Speech recognition (Free) | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) with NVIDIA Nemotron 3.5 ASR streaming 0.6B (int8), downloaded by WorkManager with resume |
+| Translation (Free) | Google ML Kit on-device translation |
 | Summaries | Anthropic Claude (`claude-haiku-5-5`) via the official `anthropic-java` SDK |
 | Storage | Room (conversation history), EncryptedSharedPreferences (API keys and settings) |
 | Serialization | kotlinx.serialization |
@@ -69,7 +79,9 @@ How to run the benchmarks is described in
    ./gradlew assembleDebug
    ```
 
-2. Install it on a phone, open **Settings** and enter:
+2. Install it on a phone. In **Free** mode (the default on a fresh install) open **Settings**,
+   tap **Download** for the speech model, pick the languages and press **Start** — no keys.
+   For **Paid** mode switch to Paid in Settings and enter:
    - a **Soniox API key** — required for transcription and translation;
    - an **Anthropic API key** — optional, needed only for summaries.
 
