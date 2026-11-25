@@ -22,3 +22,6 @@
 -dontwarn java.lang.reflect.AnnotatedArrayType
 -dontwarn java.lang.reflect.AnnotatedWildcardType
 -dontwarn java.lang.reflect.AnnotatedTypeVariable
+
+# sherpa-onnx: the native code finds its config classes and their fields by name (JNI).
+-keep class com.k2fsa.sherpa.onnx.** { *; }
