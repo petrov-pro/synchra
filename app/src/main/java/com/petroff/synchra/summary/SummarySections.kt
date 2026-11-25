@@ -25,24 +25,28 @@ data class SummarySections(
         put(DECISIONS, JsonArray(decisions.map(::JsonPrimitive)))
     }.toString()
 
-    /** For copying: the title, then each block under its heading. */
-    fun toPlainText(title: String): String = buildString {
-        append(title).append("\n\n")
-        append(TOPIC_HEADING).append('\n').append(topic).append("\n\n")
-        append(OVERVIEW_HEADING).append('\n').append(overview).append("\n\n")
-        append(DECISIONS_HEADING).append('\n')
-        append(decisionLines().joinToString("\n"))
-    }
+    /** A block as shown: its heading and its lines (one per decision). */
+    data class Block(val heading: String, val lines: List<String>)
 
-    /** Decisions as bullet lines, or a plain note that there were none. */
-    fun decisionLines(): List<String> =
-        decisions.map { "• $it" }.ifEmpty { listOf(NO_DECISIONS) }
+    /**
+     * The blocks with something in them, in order. An empty one (often "Decisions and results")
+     * is left out entirely rather than shown with a "nothing here" note.
+     */
+    fun blocks(): List<Block> = listOfNotNull(
+        topic.takeIf { it.isNotBlank() }?.let { Block(TOPIC_HEADING, listOf(it)) },
+        overview.takeIf { it.isNotBlank() }?.let { Block(OVERVIEW_HEADING, listOf(it)) },
+        decisions.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }
+            ?.let { list -> Block(DECISIONS_HEADING, list.map { "• $it" }) },
+    )
+
+    /** For copying: the title, then each non-empty block under its heading. */
+    fun toPlainText(title: String): String =
+        (listOf(title) + blocks().map { "${it.heading}\n${it.lines.joinToString("\n")}" }).joinToString("\n\n")
 
     companion object {
         const val TOPIC_HEADING = "Topic"
         const val OVERVIEW_HEADING = "Overview"
         const val DECISIONS_HEADING = "Decisions and results"
-        const val NO_DECISIONS = "No decisions recorded."
 
         private const val TOPIC = "topic"
         private const val OVERVIEW = "overview"

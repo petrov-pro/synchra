@@ -132,11 +132,11 @@ fun ConversationScreen(
                     if (sections == null) {
                         Text(record.summary, style = MaterialTheme.typography.bodyLarge)
                     } else {
-                        SummaryBlock(SummarySections.TOPIC_HEADING, listOf(sections.topic))
-                        SummaryBlockDivider()
-                        SummaryBlock(SummarySections.OVERVIEW_HEADING, listOf(sections.overview))
-                        SummaryBlockDivider()
-                        SummaryBlock(SummarySections.DECISIONS_HEADING, sections.decisionLines())
+                        // Empty blocks are left out, and so are the dividers around them.
+                        sections.blocks().forEachIndexed { index, block ->
+                            if (index > 0) SummaryBlockDivider()
+                            SummaryBlock(block.heading, block.lines)
+                        }
                     }
                 }
             } else {

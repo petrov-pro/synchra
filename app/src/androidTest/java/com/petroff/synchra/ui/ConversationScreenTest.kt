@@ -97,6 +97,16 @@ class ConversationScreenTest {
     }
 
     @Test
+    fun anEmptyBlockIsHiddenWithItsHeadingAndDivider() {
+        val stored = SummarySections("Сроки релиза", "Обсудили пятницу.", emptyList()).encode()
+        show(ConversationUiState(record = record(summary = stored), view = ConversationView.SUMMARY))
+
+        composeRule.onNodeWithText("Decisions and results").assertDoesNotExist()
+        composeRule.onNodeWithText("No decisions recorded.").assertDoesNotExist()
+        composeRule.onAllNodesWithTag("summaryBlockDivider").assertCountEquals(1)
+    }
+
+    @Test
     fun tappingOriginalAndSummaryInvokesCallbacks() {
         var summary = 0
         var original = 0

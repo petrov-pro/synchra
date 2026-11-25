@@ -39,7 +39,18 @@ class SummarySectionsTest {
     }
 
     @Test
-    fun `no decisions is said plainly`() {
-        assertTrue(sections.copy(decisions = emptyList()).toPlainText("T").endsWith("Decisions and results\nNo decisions recorded."))
+    fun `an empty block is left out, heading and all`() {
+        val noDecisions = sections.copy(decisions = emptyList())
+        assertEquals(listOf("Topic", "Overview"), noDecisions.blocks().map { it.heading })
+        assertEquals(
+            "T\n\nTopic\nСроки релиза\n\nOverview\nОбсудили, успеет ли команда к пятнице.",
+            noDecisions.toPlainText("T"),
+        )
+    }
+
+    @Test
+    fun `blank text counts as empty`() {
+        val blank = SummarySections(topic = " ", overview = "Обсудили.", decisions = listOf("", "  "))
+        assertEquals(listOf("Overview"), blank.blocks().map { it.heading })
     }
 }
