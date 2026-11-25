@@ -46,4 +46,10 @@ class LanguagesTest {
     fun `nothing matches nonsense`() {
         assertTrue(searchLanguages("zzzz").isEmpty())
     }
+
+    @Test
+    fun `a pair is shown short, as capitalized codes`() {
+        assertEquals("En-Ru", shortPairLabel(languageForCode("en")!!, languageForCode("ru")!!))
+        assertEquals("Zh-Uk", shortPairLabel(languageForCode("zh")!!, languageForCode("uk")!!))
+    }
 }

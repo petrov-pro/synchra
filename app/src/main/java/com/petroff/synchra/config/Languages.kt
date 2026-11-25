@@ -79,6 +79,10 @@ const val DEFAULT_TARGET_LANGUAGE = "ru"
 
 fun languageForCode(code: String): Language? = SUPPORTED_LANGUAGES.firstOrNull { it.code == code }
 
+/** The pair as the top bar shows it: capitalized codes, e.g. "En-Ru". */
+fun shortPairLabel(source: Language, target: Language): String =
+    "${source.code.replaceFirstChar { it.uppercase() }}-${target.code.replaceFirstChar { it.uppercase() }}"
+
 /**
  * Languages matching [query] by code, English name or own name, ignoring case: the exact code
  * first, then names starting with the query, then names merely containing it.

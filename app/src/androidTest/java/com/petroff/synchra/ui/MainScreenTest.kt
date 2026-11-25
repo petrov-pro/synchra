@@ -21,6 +21,7 @@ import com.petroff.synchra.config.languageForCode
 import com.petroff.synchra.session.SessionUiState
 import com.petroff.synchra.session.ViewMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -47,7 +48,16 @@ class MainScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("English → Russian").assertExists()
+        // Short, in the top bar, set apart from History by a divider; the full names stay
+        // available to screen readers.
+        composeRule.onNodeWithText("English → Russian").assertDoesNotExist()
+        composeRule.onNodeWithTag("languagePair").assertTextEquals("En-Ru")
+        composeRule.onNodeWithContentDescription("English → Russian").assertExists()
+        composeRule.onNodeWithTag("languagePairDivider").assertExists()
+        val pair = composeRule.onNodeWithTag("languagePair").fetchSemanticsNode().boundsInRoot
+        val history = composeRule.onNodeWithContentDescription("History").fetchSemanticsNode().boundsInRoot
+        assertTrue(pair.right <= history.left)
+        assertTrue(pair.bottom <= history.bottom && pair.top >= history.top)
         composeRule.onNodeWithTag("sourceLanguage").assertDoesNotExist()
     }
 

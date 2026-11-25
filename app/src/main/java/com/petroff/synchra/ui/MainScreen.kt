@@ -33,12 +33,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.petroff.synchra.config.Language
 import com.petroff.synchra.config.MAX_CONVERSATION_CONTEXT_CHARS
+import com.petroff.synchra.config.shortPairLabel
 import com.petroff.synchra.session.SessionUiState
 import com.petroff.synchra.session.ViewMode
 
@@ -89,6 +92,24 @@ fun MainScreen(
                     )
                 },
                 actions = {
+                    // Chosen in Settings; a recording keeps the languages it started with. Short
+                    // to fit the bar; screen readers get the full names.
+                    val fullPair = "${sourceLanguage.name} → ${targetLanguage.name}"
+                    Text(
+                        shortPairLabel(sourceLanguage, targetLanguage),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                            .semantics { contentDescription = fullPair }
+                            .testTag("languagePair"),
+                    )
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .padding(horizontal = 4.dp)
+                            .testTag("languagePairDivider"),
+                    )
                     // Saved conversations: a block of its own, set apart from the session controls.
                     IconButton(onClick = onOpenHistory) {
                         Icon(Icons.Filled.History, contentDescription = "History")
@@ -123,9 +144,6 @@ fun MainScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Chosen in Settings; a recording keeps the languages it started with.
-            Text("${sourceLanguage.name} → ${targetLanguage.name}", style = MaterialTheme.typography.labelLarge)
-
             // Only what is shown: works while recording too. Whether Soniox translates is
             // decided at Start (see LiveSession.start), so the bill doesn't change mid-session.
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
