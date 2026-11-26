@@ -18,11 +18,27 @@ sealed interface SonioxEvent {
  * Folds Soniox real-time responses into the running source text and its translation.
  * Final tokens are appended once; non-final tokens are only a preview and are replaced
  * wholesale by the next response (https://docs.soniox.com/stt/api-reference/websocket-api).
+ *
+ * The text is kept as paragraphs: a new one starts when someone speaks after a pause and when
+ * the speaker changes (Soniox diarization labels every token, translation included). Once two
+ * or more speakers were heard, each change of speaker is labeled "Speaker N:", from the start;
+ * a conversation with one voice shows no labels.
  */
 class SonioxTranscript {
-    private val finalSource = StringBuilder()
-    private val finalTranslation = StringBuilder()
+    private val source = Side()
+    private val translation = Side()
 
+    /**
+     * Someone speaks again after a pause: what follows starts a new paragraph, in the source
+     * and in the translation. Called from the microphone thread, apply() from the socket's.
+     */
+    @Synchronized
+    fun paragraphBreak() {
+        source.paragraphBreak()
+        translation.paragraphBreak()
+    }
+
+    @Synchronized
     fun apply(message: String): SonioxEvent {
         val root = Json.parseToJsonElement(message).jsonObject
         root["error_code"]?.let { code ->
@@ -35,8 +51,8 @@ class SonioxTranscript {
             )
         }
 
-        val pendingSource = StringBuilder()
-        val pendingTranslation = StringBuilder()
+        val pendingSource = mutableListOf<Token>()
+        val pendingTranslation = mutableListOf<Token>()
         root["tokens"]?.jsonArray?.forEach { element ->
             val token = element.jsonObject
             val text = token.string("text") ?: return@forEach
@@ -44,20 +60,44 @@ class SonioxTranscript {
             if (text == END_TOKEN) return@forEach
             val isTranslation = token.string("translation_status") == "translation"
             val isFinal = token["is_final"]?.jsonPrimitive?.booleanOrNull == true
+            val parsed = Token(text, token.string("speaker"))
             when {
-                isTranslation && isFinal -> finalTranslation.append(text)
-                isTranslation -> pendingTranslation.append(text)
-                isFinal -> finalSource.append(text)
-                else -> pendingSource.append(text)
+                isTranslation && isFinal -> translation.finals.addToken(parsed, translation)
+                isTranslation -> pendingTranslation += parsed
+                isFinal -> source.finals.addToken(parsed, source)
+                else -> pendingSource += parsed
             }
         }
 
-        val source = (finalSource.toString() + pendingSource).trim()
-        val translation = (finalTranslation.toString() + pendingTranslation).trim()
+        val sourceText = source.render(pendingSource)
+        val translationText = translation.render(pendingTranslation)
         return if (root["finished"]?.jsonPrimitive?.booleanOrNull == true) {
-            SonioxEvent.Finished(source, translation)
+            SonioxEvent.Finished(sourceText, translationText)
         } else {
-            SonioxEvent.Update(source, translation)
+            SonioxEvent.Update(sourceText, translationText)
+        }
+    }
+
+    private data class Token(val text: String, val speaker: String?)
+
+    private class Paragraph(val speaker: String?, val text: StringBuilder = StringBuilder())
+
+    /** One side's text: the final paragraphs, and whether a pause is waiting for new words. */
+    private class Side {
+        val finals = mutableListOf<Paragraph>()
+        var breakPending = false
+
+        fun paragraphBreak() {
+            breakPending = finals.isNotEmpty()
+        }
+
+        /** The final text with this response's preview words after it. */
+        fun render(pending: List<Token>): String {
+            if (pending.isEmpty()) return text(finals)
+            val preview = finals.mapTo(mutableListOf()) { Paragraph(it.speaker, StringBuilder(it.text)) }
+            val previewState = Side().also { it.breakPending = breakPending }
+            pending.forEach { preview.addToken(it, previewState) }
+            return text(preview)
         }
     }
 
@@ -65,5 +105,32 @@ class SonioxTranscript {
 
     private companion object {
         const val END_TOKEN = "<end>"
+        const val PARAGRAPH = "\n\n"
+
+        fun MutableList<Paragraph>.addToken(token: Token, side: Side) {
+            val last = lastOrNull()
+            // A lone space neither opens a paragraph nor tells who speaks.
+            if (token.text.isBlank()) {
+                last?.text?.append(token.text)
+                return
+            }
+            val speakerChanged = last != null && token.speaker != null && token.speaker != last.speaker
+            if (last == null || side.breakPending || speakerChanged) {
+                add(Paragraph(token.speaker ?: last?.speaker, StringBuilder(token.text.trimStart())))
+                side.breakPending = false
+            } else {
+                last.text.append(token.text)
+            }
+        }
+
+        fun text(paragraphs: List<Paragraph>): String {
+            val shown = paragraphs.filter { it.text.isNotBlank() }
+            val labeled = shown.mapNotNull { it.speaker }.distinct().size >= 2
+            return shown.mapIndexed { i, paragraph ->
+                val body = paragraph.text.toString().trim()
+                val speakerChanged = i == 0 || shown[i - 1].speaker != paragraph.speaker
+                if (labeled && paragraph.speaker != null && speakerChanged) "Speaker ${paragraph.speaker}: $body" else body
+            }.joinToString(PARAGRAPH)
+        }
     }
 }

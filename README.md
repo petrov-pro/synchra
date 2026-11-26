@@ -11,18 +11,41 @@ translation as you talk, without waiting for the end of a sentence.
 
 ## What it does
 
+- **Free and paid modes,** switched in Settings:
+  - **Free** — no account and no keys. Speech is recognized on the phone (NVIDIA Nemotron 3.5,
+    28 languages, a one-time ≈650 MB download) and translated on the phone (Google ML Kit,
+    ≈30 MB per language). Nothing about the conversation leaves the phone. Translation is
+    simpler than in Paid, and there are no summaries.
+  - **Paid** — Soniox recognizes and translates in the cloud (60 languages, best quality),
+    Claude writes summaries. Needs your own API keys.
+
+  > **Recommended: Paid mode.** It recognizes speech more accurately, translates with the
+  > context of the conversation, covers more languages and writes summaries, at about
+  > $0.12–0.23 per hour of audio. Free mode is for trying the app or for when nothing may
+  > leave the phone: its translation is word-for-word plainer, context is not used, there are
+  > no summaries, and it needs ≈680 MB on the phone plus a few minutes to download and unpack
+  > the speech model.
+
+- **Context (Paid).** A global context (in Settings) and a per-conversation note ("topic,
+  participants, terms") help recognition and translation of names and jargon. Free mode hides
+  both: its on-device engines don't use them.
+
 - **Live transcription and translation.** The source and target languages are chosen in
-  Settings from the 60 languages Soniox supports; the main screen shows the pair in short form
+  Settings (60 languages in Paid, 28 spoken languages in Free); the main screen shows the pair in short form
   (for example `En-Ru`).
 - **Three view modes:** both texts side by side, transcription only or translation only.
   Transcription-only sessions skip translation altogether.
-- **Context.** A global context (in Settings) and a per-conversation note ("topic, participants,
-  terms") help recognition and translation of names and jargon.
+- **Pauses and speakers.** Each pause starts a new paragraph, and a small crossed-out
+  microphone shows while nobody speaks (can be hidden in Settings). In Paid mode Soniox also
+  tells voices apart: once two or more are heard, each change of speaker is labeled
+  "Speaker 1:", "Speaker 2:"… in the source and the translation.
+- **Reading back while recording.** Scrolling up stops the text from jumping to the newest
+  words; a see-through button returns to them. The screen stays on while recording.
 - **Recording in the background.** A foreground service keeps listening while the screen is off
   or another app is open.
 - **History.** Every session is saved on the device and can be reopened, copied (long press) or
   deleted.
-- **Summaries.** A finished conversation can be summarized by Claude into blocks: topic,
+- **Summaries (Paid).** A finished conversation can be summarized by Claude into blocks: topic,
   overview, decisions and results.
 
 ## Technology
@@ -32,7 +55,9 @@ translation as you talk, without waiting for the end of a sentence.
 | Language & platform | Kotlin, Android (minSdk 26, targetSdk 37), Java 17 |
 | UI | Jetpack Compose, Material 3, Navigation Compose |
 | Architecture | ViewModels + Kotlin coroutines/Flow, a small manual DI container (`AppContainer`) |
-| Speech recognition & translation | [Soniox](https://soniox.com) real-time API over WebSocket (OkHttp) |
+| Speech recognition & translation (Paid) | [Soniox](https://soniox.com) real-time API over WebSocket (OkHttp) |
+| Speech recognition (Free) | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) with NVIDIA Nemotron 3.5 ASR streaming 0.6B (int8), downloaded by WorkManager with resume |
+| Translation (Free) | Google ML Kit on-device translation |
 | Summaries | Anthropic Claude (`claude-haiku-5-5`) via the official `anthropic-java` SDK |
 | Storage | Room (conversation history), EncryptedSharedPreferences (API keys and settings) |
 | Serialization | kotlinx.serialization |
@@ -69,7 +94,9 @@ How to run the benchmarks is described in
    ./gradlew assembleDebug
    ```
 
-2. Install it on a phone, open **Settings** and enter:
+2. Install it on a phone. In **Free** mode (the default on a fresh install) open **Settings**,
+   tap **Download** for the speech model, pick the languages and press **Start** — no keys.
+   For **Paid** mode switch to Paid in Settings and enter:
    - a **Soniox API key** — required for transcription and translation;
    - an **Anthropic API key** — optional, needed only for summaries.
 

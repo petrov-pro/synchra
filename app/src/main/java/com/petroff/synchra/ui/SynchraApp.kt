@@ -1,5 +1,9 @@
 package com.petroff.synchra.ui
 
+import com.petroff.synchra.asr.ModelState
+import com.petroff.synchra.config.Mode
+import com.petroff.synchra.translate.mlKitTargetCodes
+
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -9,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -16,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -47,6 +53,14 @@ fun SynchraApp(container: AppContainer) {
                 )
                 val uiState by sessionViewModel.uiState.collectAsState()
 
+                // The screen stays on while recording, so the live text can be read without
+                // touching the phone; it may sleep again as usual once stopped.
+                val view = LocalView.current
+                DisposableEffect(view, uiState.isListening) {
+                    view.keepScreenOn = uiState.isListening
+                    onDispose { view.keepScreenOn = false }
+                }
+
                 // Re-read config whenever the visible screen changes, so edits made in
                 // Settings (API keys, context) are picked up as soon as the user
                 // navigates back to Main, without needing ConfigRepository to be reactive.
@@ -57,6 +71,9 @@ fun SynchraApp(container: AppContainer) {
                 val historyViewModel: HistoryViewModel = viewModel(
                     factory = viewModelFactory { initializer { HistoryViewModel(container.historyRepository) } }
                 )
+                // The speech model may finish downloading while Main is shown.
+                val appModelState by container.modelDownloads.state.collectAsState(initial = ModelState.NotDownloaded)
+                LaunchedEffect(appModelState) { sessionViewModel.refreshCanStart() }
                 LaunchedEffect(backStackEntry) {
                     config = container.configRepository.getConfig()
                     sessionViewModel.refreshCanStart()
@@ -111,7 +128,9 @@ fun SynchraApp(container: AppContainer) {
                             onSummary = {
                                 uiState.lastRecordId?.let { navController.navigateOnce("conversation/$it?summarize=true") }
                             },
-                            hasApiKey = !config.sonioxApiKey.isNullOrBlank(),
+                            // Free mode needs no key.
+                            showSilenceIcon = config.showSilenceIcon,
+                            hasApiKey = config.mode == Mode.FREE || !config.sonioxApiKey.isNullOrBlank(),
                             onApiKeyRequired = {
                                 focusApiKeyOnSettingsOpen = true
                                 navController.navigateOnce("settings")
@@ -166,6 +185,7 @@ fun SynchraApp(container: AppContainer) {
                             onSummaryClick = conversationViewModel::onSummaryClick,
                             onOriginalClick = conversationViewModel::onOriginalClick,
                             onViewModeChange = conversationViewModel::setViewMode,
+                            canSummarize = config.mode == Mode.PAID,
                             onDismissError = {
                                 val close = state.closeOnErrorDismiss
                                 conversationViewModel.dismissError()
@@ -175,7 +195,16 @@ fun SynchraApp(container: AppContainer) {
                         )
                     }
                     composable("settings") {
+                        val modelState by container.modelDownloads.state.collectAsState(initial = ModelState.NotDownloaded)
                         SettingsScreen(
+                            currentMode = config.mode,
+                            onSaveMode = { container.configRepository.setMode(it) },
+                            modelState = modelState,
+                            onDownloadModel = container.modelDownloads::start,
+                            onCancelModel = container.modelDownloads::cancel,
+                            onDeleteModel = container.modelDownloads::delete,
+                            isRecording = uiState.isListening,
+                            onDeviceTargetCodes = remember { mlKitTargetCodes() },
                             currentSonioxApiKey = config.sonioxApiKey,
                             currentApiKey = config.apiKey,
                             currentGeneralContext = config.generalContext,
@@ -199,6 +228,11 @@ fun SynchraApp(container: AppContainer) {
                             onCrashReportsChange = {
                                 container.configRepository.setCrashReportsConsent(it)
                                 container.crashReporter.setEnabled(it)
+                                config = container.configRepository.getConfig()
+                            },
+                            showSilenceIcon = config.showSilenceIcon,
+                            onShowSilenceIconChange = {
+                                container.configRepository.setShowSilenceIcon(it)
                                 config = container.configRepository.getConfig()
                             },
                             onSwapLanguages = {

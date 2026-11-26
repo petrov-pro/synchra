@@ -1,5 +1,7 @@
 package com.petroff.synchra.ui
 
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -288,5 +290,116 @@ class SettingsScreenTest {
 
         composeRule.onNodeWithTag("crashReportsSwitch").performScrollTo().performClick()
         assertEquals(true, crashReports)
+    }
+
+    private fun showSettings(
+        mode: com.petroff.synchra.config.Mode,
+        modelState: com.petroff.synchra.asr.ModelState = com.petroff.synchra.asr.ModelState.NotDownloaded,
+        isRecording: Boolean = false,
+        onSaveMode: (com.petroff.synchra.config.Mode) -> Unit = {},
+        onDownload: () -> Unit = {},
+    ) = composeRule.setContent {
+        SettingsScreen(
+            currentSonioxApiKey = null,
+            currentApiKey = null,
+            currentGeneralContext = "",
+            onSaveApiKey = {},
+            onSaveGeneralContext = {},
+            onSaveSonioxApiKey = {},
+            onBack = {},
+            currentMode = mode,
+            onSaveMode = onSaveMode,
+            modelState = modelState,
+            onDownloadModel = onDownload,
+            isRecording = isRecording,
+        )
+    }
+
+    @Test
+    fun freeModeShowsTheModelRowNotTheKeys() {
+        showSettings(com.petroff.synchra.config.Mode.FREE)
+        composeRule.onNodeWithText("Speech model").assertExists()
+        composeRule.onNodeWithText("Soniox API key").assertDoesNotExist()
+        composeRule.onNodeWithText("Anthropic API key").assertDoesNotExist()
+    }
+
+    @Test
+    fun paidModeShowsTheKeysNotTheModelRow() {
+        showSettings(com.petroff.synchra.config.Mode.PAID)
+        composeRule.onNodeWithText("Soniox API key").assertExists()
+        composeRule.onNodeWithText("Speech model").assertDoesNotExist()
+    }
+
+    @Test
+    fun theModeIsSavedOnSaveOnly() {
+        var saved: com.petroff.synchra.config.Mode? = null
+        showSettings(com.petroff.synchra.config.Mode.FREE, onSaveMode = { saved = it })
+
+        composeRule.onNodeWithText("Paid").performClick()
+        composeRule.onNodeWithText("Soniox API key").assertExists()
+        assertEquals(null, saved)
+
+        composeRule.onNodeWithText("Save").performScrollTo().performClick()
+        assertEquals(com.petroff.synchra.config.Mode.PAID, saved)
+    }
+
+    @Test
+    fun modelStatesShowTheirTextAndButton() {
+        var downloads = 0
+        showSettings(com.petroff.synchra.config.Mode.FREE, onDownload = { downloads++ })
+        composeRule.onNodeWithText("Not downloaded (≈650 MB)").assertExists()
+        composeRule.onNodeWithText("Wi-Fi recommended", substring = true).assertExists()
+        composeRule.onNodeWithText("Download").performClick()
+        assertEquals(1, downloads)
+    }
+
+    @Test
+    fun downloadingShowsPercentAndCancel() {
+        showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Downloading(37))
+        composeRule.onNodeWithText("Downloading 37%").assertExists()
+        composeRule.onNodeWithText("Cancel").assertExists()
+    }
+
+    @Test
+    fun readyShowsDelete() {
+        showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Ready)
+        composeRule.onNodeWithText("Ready").assertExists()
+        composeRule.onNodeWithText("Delete").assertIsEnabled()
+    }
+
+    @Test
+    fun failedTellsHowToResume() {
+        showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Failed)
+        composeRule.onNodeWithText("Download failed — tap Download to resume").assertExists()
+        composeRule.onNodeWithText("Download").assertExists()
+        // A broken partial download can always be thrown away.
+        composeRule.onNodeWithText("Delete").assertIsEnabled()
+    }
+
+    @Test
+    fun recordingLocksTheModeAndDelete() {
+        showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Ready, isRecording = true)
+        composeRule.onNodeWithText("Delete").assertIsNotEnabled()
+        composeRule.onNodeWithText("Paid").assertIsNotEnabled()
+        composeRule.onNodeWithText("Stop recording first").assertExists()
+    }
+
+    @Test
+    fun unpackingIsShownAfterTheDownload() {
+        showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Unpacking(42))
+        composeRule.onNodeWithText("Unpacking 42%").assertExists()
+        composeRule.onNodeWithText("Cancel").assertExists()
+    }
+
+    @Test
+    fun globalContextIsOnlyInPaidMode() {
+        showSettings(com.petroff.synchra.config.Mode.FREE)
+        composeRule.onNodeWithText("Global context").assertDoesNotExist()
+        // Its divider goes with it, or two lines would stand back to back.
+        composeRule.onNodeWithTag("globalContextDivider").assertDoesNotExist()
+
+        composeRule.onNodeWithText("Paid").performClick()
+        composeRule.onNodeWithText("Global context").performScrollTo().assertExists()
+        composeRule.onNodeWithTag("globalContextDivider").assertExists()
     }
 }

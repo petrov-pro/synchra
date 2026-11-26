@@ -27,9 +27,13 @@ android {
         applicationId = "com.petroff.synchra"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Phones only: sherpa-onnx's native libraries are large, and Play ships each phone
+        // just its own ABI from the bundle.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
 
         buildConfigField(
             "String", "DEFAULT_API_BASE_URL",
@@ -54,6 +58,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // The emulator for instrumented tests is x86_64.
+            ndk { abiFilters += "x86_64" }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -111,6 +119,13 @@ dependencies {
     implementation("com.google.firebase:firebase-crashlytics")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // On-device speech recognition (Free mode): https://github.com/k2-fsa/sherpa-onnx
+    implementation(files("libs/sherpa-onnx-2.0.3.aar"))
+    // The speech model comes as a .tar.bz2; WorkManager downloads it in the background.
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
+    // On-device translation (Free mode).
+    implementation("com.google.mlkit:translate:17.0.3")
     implementation("com.anthropic:anthropic-java:3.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")

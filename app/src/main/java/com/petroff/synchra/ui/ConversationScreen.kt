@@ -51,6 +51,8 @@ fun ConversationScreen(
     onOriginalClick: () -> Unit,
     onViewModeChange: (ViewMode) -> Unit,
     onDismissError: () -> Unit,
+    // False in Free mode: no summaries are made, a saved one is still shown.
+    canSummarize: Boolean = true,
 ) {
     val record = state.record
 
@@ -88,7 +90,7 @@ fun ConversationScreen(
                         IconButton(onClick = onOriginalClick) {
                             Icon(Icons.AutoMirrored.Filled.Article, contentDescription = "Original")
                         }
-                    } else {
+                    } else if (canSummarize || record?.summary != null) {
                         IconButton(onClick = onSummaryClick, enabled = !state.isSummarizing && record != null) {
                             Icon(Icons.Filled.Summarize, contentDescription = "Summary")
                         }

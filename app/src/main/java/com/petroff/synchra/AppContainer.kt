@@ -3,6 +3,13 @@ package com.petroff.synchra
 import android.content.Context
 import androidx.room.Room
 import com.petroff.synchra.asr.MicAudioSource
+import com.petroff.synchra.asr.ModelDownloads
+import com.petroff.synchra.asr.SherpaOnnxAsrEngine
+import com.petroff.synchra.asr.createNemotronDecoder
+import com.petroff.synchra.local.LocalSpeechTranslator
+import com.petroff.synchra.session.ModeSwitchingSpeechTranslator
+import com.petroff.synchra.translate.MlKitTranslator
+import com.petroff.synchra.translate.mlKitTargetCodes
 import com.petroff.synchra.config.ConfigRepository
 import com.petroff.synchra.config.DefaultConfigRepository
 import com.petroff.synchra.config.EncryptedPrefsSettingsStore
@@ -21,8 +28,6 @@ import com.petroff.synchra.soniox.SonioxSpeechTranslator
 import com.petroff.synchra.soniox.SpeechTranslator
 import com.petroff.synchra.summary.ClaudeSummarizer
 import com.petroff.synchra.summary.Summarizer
-import java.io.File
-import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -58,9 +63,25 @@ class AppContainer(private val context: Context) {
     // Lives as long as the app process: summary requests outlive the screen that started them.
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    // Free mode's speech model: an older model left in filesDir/model is replaced when this
+    // one is downloaded (ModelStore checks which model the files belong to).
+    val modelDownloads = ModelDownloads(context)
+
     val summaryJobs = SummaryJobs(appScope, historyRepository, summarizer, crashReporter)
 
-    val liveSession = LiveSession(buildSpeechTranslator(), configRepository, historyRepository, appScope, crashReporter)
+    val liveSession: LiveSession = LiveSession(
+        ModeSwitchingSpeechTranslator(
+            modeProvider = { configRepository.getConfig().mode },
+            paid = buildSpeechTranslator(),
+            free = buildLocalSpeechTranslator(),
+        ),
+        configRepository,
+        historyRepository,
+        appScope,
+        crashReporter,
+        modelReady = { modelDownloads.store.isReady() },
+        onDeviceTargetCodes = { mlKitTargetCodes() },
+    )
 
     init {
         crashReporter.setEnabled(configRepository.getConfig().crashReportsConsent == true)
@@ -71,10 +92,19 @@ class AppContainer(private val context: Context) {
                 if (listening) RecordingService.start(context)
             }
         }
-        // The on-device recognition model (~650 MB) from before Soniox; nothing reads it anymore.
-        val legacyModelDir = File(context.filesDir, "model")
-        if (legacyModelDir.exists()) thread(name = "LegacyModelCleanup") { legacyModelDir.deleteRecursively() }
     }
+
+    // Free mode: recognition and translation on the phone.
+    private fun buildLocalSpeechTranslator(): SpeechTranslator = LocalSpeechTranslator(
+        audioSourceFactory = { MicAudioSource() },
+        recognizerFactory = { language, audio ->
+            SherpaOnnxAsrEngine(audio, { createNemotronDecoder(modelDownloads.store.paths(), language) })
+        },
+        translatorFactory = { MlKitTranslator() },
+        scope = appScope,
+        // liveSession is built after this engine; the callback only runs once a session starts.
+        onPreparing = { liveSession.setPreparing(it) },
+    )
 
     fun buildSpeechTranslator(): SpeechTranslator = SonioxSpeechTranslator(
         audioSourceFactory = { MicAudioSource() },

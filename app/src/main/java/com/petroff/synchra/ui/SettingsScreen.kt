@@ -48,6 +48,14 @@ import androidx.compose.ui.unit.dp
 import com.petroff.synchra.config.DEFAULT_SOURCE_LANGUAGE
 import com.petroff.synchra.config.DEFAULT_TARGET_LANGUAGE
 import com.petroff.synchra.config.Language
+import com.petroff.synchra.config.Mode
+import com.petroff.synchra.config.sourceLanguagesFor
+import com.petroff.synchra.config.targetLanguagesFor
+import com.petroff.synchra.asr.ModelState
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.petroff.synchra.config.MAX_GENERAL_CONTEXT_CHARS
 import com.petroff.synchra.config.languageForCode
 
@@ -76,6 +84,21 @@ fun SettingsScreen(
     // Applied at once, like the languages.
     crashReportsEnabled: Boolean = false,
     onCrashReportsChange: (Boolean) -> Unit = {},
+    // Applied at once too.
+    showSilenceIcon: Boolean = true,
+    onShowSilenceIconChange: (Boolean) -> Unit = {},
+    // Free / Paid: switched here, applied on Save like the keys.
+    currentMode: Mode = Mode.PAID,
+    onSaveMode: (Mode) -> Unit = {},
+    // Free mode's speech model; its buttons act at once.
+    modelState: ModelState = ModelState.NotDownloaded,
+    onDownloadModel: () -> Unit = {},
+    onCancelModel: () -> Unit = {},
+    onDeleteModel: () -> Unit = {},
+    // A recording is running: the mode and the model it may be using stay as they are.
+    isRecording: Boolean = false,
+    // Languages the on-device translator can translate into (Free mode's targets).
+    onDeviceTargetCodes: Set<String> = emptySet(),
 ) {
     // Taken here, not inside the help dialog: a dialog is its own window with its own handler.
     val uriHandler = LocalUriHandler.current
@@ -84,8 +107,11 @@ fun SettingsScreen(
     // Which side's picker is open: true = source, false = target, null = none.
     var pickingSource by remember { mutableStateOf<Boolean?>(null) }
 
+    var modeField by remember { mutableStateOf(currentMode) }
+
     pickingSource?.let { isSource ->
         LanguagePickerSheet(
+            languages = if (isSource) sourceLanguagesFor(modeField) else targetLanguagesFor(modeField, onDeviceTargetCodes),
             title = if (isSource) "Speech language" else "Translate into",
             selected = if (isSource) sourceLanguage else targetLanguage,
             recent = recentLanguages,
@@ -157,9 +183,34 @@ fun SettingsScreen(
             // declared outside that slot can request focus before the TextField below is
             // actually attached, which silently no-ops instead of focusing it.
             LaunchedEffect(Unit) {
-                if (autoFocusApiKey) {
+                // The key field exists only in Paid mode.
+                if (autoFocusApiKey && modeField == Mode.PAID) {
                     apiKeyFocusRequester.requestFocus()
                     keyboardController?.show()
+                }
+            }
+
+            FieldRow(
+                field = "Mode",
+                helpText = "Free: speech is recognized and translated on this phone. Nothing is " +
+                    "sent anywhere and no keys are needed, but it needs a one-time download of the " +
+                    "speech model, the translation is simpler and there are no summaries. Paid: " +
+                    "Soniox recognizes and translates (best quality, 60 languages), Claude writes " +
+                    "summaries; both need your own API keys. Applied when you tap Save.",
+                onShowHelp = { helpDialog = it },
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().testTag("modeSwitch")) {
+                        listOf(Mode.FREE to "Free", Mode.PAID to "Paid").forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = modeField == mode,
+                                onClick = { modeField = mode },
+                                enabled = !isRecording,
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                            ) { Text(label) }
+                        }
+                    }
+                    if (isRecording) StopRecordingFirst()
                 }
             }
 
@@ -180,7 +231,20 @@ fun SettingsScreen(
                 )
             }
 
-            FieldRow(
+            if (modeField == Mode.FREE) {
+                FieldRow(
+                    field = "Speech model",
+                    helpText = "Free mode recognizes speech on this phone with NVIDIA's Nemotron " +
+                        "model (about 650 MB, 28 languages). It downloads once, in the background; " +
+                        "an interrupted download continues where it stopped. Translation models " +
+                        "(about 30 MB per language) download on the first Start.",
+                    onShowHelp = { helpDialog = it },
+                ) {
+                    SpeechModelRow(modelState, isRecording, onDownloadModel, onCancelModel, onDeleteModel)
+                }
+            }
+
+            if (modeField == Mode.PAID) FieldRow(
                 field = "Soniox API key",
                 helpText = "Your Soniox API key. Soniox recognizes your speech and translates it " +
                     "live (about \$0.12-0.23 per hour of audio). Required to start.",
@@ -197,7 +261,7 @@ fun SettingsScreen(
                 )
             }
 
-            FieldRow(
+            if (modeField == Mode.PAID) FieldRow(
                 field = "Anthropic API key",
                 helpText = "Your Anthropic (Claude) API key, used for conversation summaries. " +
                     "Live transcription and translation work without it.",
@@ -216,12 +280,16 @@ fun SettingsScreen(
 
             // Set apart from the connection/session fields above — general context is a
             // different kind of setting (standing background for the AI, not a connection or
-            // session parameter) — with extra breathing room and a divider ahead of it.
-            HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+            // session parameter) — with extra breathing room and a divider ahead of it. Free mode
+            // has no context, so neither the field nor its divider.
+            if (modeField == Mode.PAID) {
+                HorizontalDivider(modifier = Modifier.padding(top = 8.dp).testTag("globalContextDivider"))
+            }
 
             // Standing context, sent with every session ahead of the per-conversation one from the
             // Main screen's Context button — see LiveSession.start.
-            FieldRow(
+            // Free mode's on-device engines take no context.
+            if (modeField == Mode.PAID) FieldRow(
                 field = "Global context",
                 helpText = "Goes with every conversation: about you, your company, team, product, " +
                     "its names and terms. It helps Soniox recognize and translate, and Claude " +
@@ -244,6 +312,23 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 
             FieldRow(
+                field = "Silence icon",
+                helpText = "While recording, a small crossed-out microphone in the bottom right " +
+                    "corner of the text shows that nobody is speaking. Each pause also starts " +
+                    "a new paragraph, with or without the icon.",
+                onShowHelp = { helpDialog = it },
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Show the icon during silence", modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = showSilenceIcon,
+                        onCheckedChange = onShowSilenceIconChange,
+                        modifier = Modifier.testTag("silenceIconSwitch"),
+                    )
+                }
+            }
+
+            FieldRow(
                 field = "Send crash reports",
                 helpText = "If Synchra crashes, an anonymous report goes to the developer through " +
                     "Firebase Crashlytics: device model, Android version and the app's last steps " +
@@ -261,6 +346,7 @@ fun SettingsScreen(
             }
 
             Button(onClick = {
+                onSaveMode(modeField)
                 onSaveSonioxApiKey(sonioxApiKeyField)
                 onSaveApiKey(apiKeyField)
                 onSaveGeneralContext(generalContextField)
@@ -268,6 +354,54 @@ fun SettingsScreen(
             }) {
                 Text("Save")
             }
+        }
+    }
+}
+
+@Composable
+private fun StopRecordingFirst() {
+    Text("Stop recording first", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** The speech model's status with the one button that fits it. */
+@Composable
+private fun SpeechModelRow(
+    state: ModelState,
+    isRecording: Boolean,
+    onDownload: () -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Speech model", style = MaterialTheme.typography.titleSmall)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val status = when (state) {
+                ModelState.NotDownloaded -> "Not downloaded (≈650 MB)"
+                is ModelState.Downloading -> "Downloading ${state.percent}%"
+                is ModelState.Unpacking -> "Unpacking ${state.percent}%"
+                ModelState.Ready -> "Ready"
+                ModelState.Failed -> "Download failed — tap Download to resume"
+            }
+            Text(status, modifier = Modifier.weight(1f).testTag("speechModelStatus"))
+            when (state) {
+                ModelState.NotDownloaded -> TextButton(onClick = onDownload) { Text("Download") }
+                ModelState.Failed -> Row {
+                    TextButton(onClick = onDownload) { Text("Download") }
+                    // Throws away a partial download that keeps failing.
+                    TextButton(onClick = onDelete, enabled = !isRecording) { Text("Delete") }
+                }
+                is ModelState.Downloading, is ModelState.Unpacking -> TextButton(onClick = onCancel) { Text("Cancel") }
+                ModelState.Ready -> TextButton(onClick = onDelete, enabled = !isRecording) { Text("Delete") }
+            }
+        }
+        if (state is ModelState.Downloading) {
+            LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
+        }
+        if (state is ModelState.Unpacking) {
+            LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
+        }
+        if (state != ModelState.Ready) {
+            Text("≈650 MB, Wi-Fi recommended", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

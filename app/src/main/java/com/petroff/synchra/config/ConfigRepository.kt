@@ -12,6 +12,8 @@ interface ConfigRepository {
     fun setConversationContext(context: String)
     fun setSonioxApiKey(key: String)
     fun setCrashReportsConsent(consent: Boolean)
+    fun setMode(mode: Mode)
+    fun setShowSilenceIcon(show: Boolean)
 }
 
 class DefaultConfigRepository(
@@ -34,6 +36,8 @@ class DefaultConfigRepository(
             CONSENT_NO -> false
             else -> null
         },
+        mode = mode(),
+        showSilenceIcon = store.getString(KEY_SILENCE_ICON, "") != SILENCE_ICON_HIDDEN,
     )
 
     override fun setApiKey(key: String) {
@@ -72,6 +76,20 @@ class DefaultConfigRepository(
     override fun setCrashReportsConsent(consent: Boolean) =
         store.putString(KEY_CRASH_REPORTS, if (consent) CONSENT_YES else CONSENT_NO)
 
+    override fun setMode(mode: Mode) =
+        store.putString(KEY_MODE, if (mode == Mode.FREE) MODE_FREE else MODE_PAID)
+
+    override fun setShowSilenceIcon(show: Boolean) =
+        store.putString(KEY_SILENCE_ICON, if (show) SILENCE_ICON_SHOWN else SILENCE_ICON_HIDDEN)
+
+    // Users who already pay for Soniox keep the paid engines after the update; everyone else
+    // starts with the free, on-device ones.
+    private fun mode(): Mode = when (store.getString(KEY_MODE, "")) {
+        MODE_FREE -> Mode.FREE
+        MODE_PAID -> Mode.PAID
+        else -> if (store.getString(KEY_SONIOX_API_KEY, "").isBlank()) Mode.FREE else Mode.PAID
+    }
+
     private fun source() = languageForCode(store.getString(KEY_SOURCE_LANGUAGE, DEFAULT_SOURCE_LANGUAGE))
         ?: languageForCode(DEFAULT_SOURCE_LANGUAGE)!!
 
@@ -106,5 +124,11 @@ class DefaultConfigRepository(
         private const val KEY_CRASH_REPORTS = "crash_reports"
         private const val CONSENT_YES = "yes"
         private const val CONSENT_NO = "no"
+        private const val KEY_MODE = "mode"
+        private const val MODE_FREE = "free"
+        private const val MODE_PAID = "paid"
+        private const val KEY_SILENCE_ICON = "silence_icon"
+        private const val SILENCE_ICON_SHOWN = "shown"
+        private const val SILENCE_ICON_HIDDEN = "hidden"
     }
 }

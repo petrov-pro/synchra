@@ -4,6 +4,9 @@ import com.petroff.synchra.diagnostics.CrashReporter
 import com.petroff.synchra.diagnostics.NoOpCrashReporter
 import com.petroff.synchra.config.ConfigRepository
 import com.petroff.synchra.config.LanguagePair
+import com.petroff.synchra.config.Mode
+import com.petroff.synchra.config.sourceLanguagesFor
+import com.petroff.synchra.config.targetLanguagesFor
 import com.petroff.synchra.history.ConversationRecord
 import com.petroff.synchra.history.HistoryRepository
 import com.petroff.synchra.soniox.LiveRequest
@@ -30,6 +33,10 @@ class LiveSession(
     private val scope: CoroutineScope,
     // Gets the steps only (start, stop, errors), never the texts or contexts.
     private val crashReporter: CrashReporter = NoOpCrashReporter,
+    // Free mode: whether the on-device speech model is downloaded.
+    private val modelReady: () -> Boolean = { false },
+    // Free mode: languages the on-device translator can translate into.
+    private val onDeviceTargetCodes: () -> Set<String> = { emptySet() },
 ) {
 
     private val _uiState = MutableStateFlow(SessionUiState())
@@ -44,7 +51,8 @@ class LiveSession(
     }
 
     fun setViewMode(mode: ViewMode) {
-        _uiState.update { it.copy(viewMode = mode, canStart = hasSonioxKey()) }
+        _uiState.update { it.copy(viewMode = mode) }
+        refreshCanStart()
     }
 
     /**
@@ -53,15 +61,40 @@ class LiveSession(
      * Soniox key was saved via ConfigRepository directly.
      */
     fun refreshCanStart() {
-        _uiState.update { it.copy(canStart = hasSonioxKey()) }
+        val mode = configRepository.getConfig().mode
+        val problem = startProblem()
+        _uiState.update {
+            it.copy(canStart = problem == null, mode = mode, startHint = problem.takeIf { mode == Mode.FREE })
+        }
     }
 
-    // Soniox both recognizes and translates, so its key is needed in every view mode.
-    private fun hasSonioxKey() = !configRepository.getConfig().sonioxApiKey.isNullOrBlank()
+    /** Free mode: the on-device translation models are being made ready. */
+    fun setPreparing(preparing: Boolean) {
+        _uiState.update { it.copy(isPreparing = preparing) }
+    }
+
+    /** Why Start can't work right now, or null when it can. */
+    private fun startProblem(): String? {
+        val config = configRepository.getConfig()
+        return when (config.mode) {
+            // Soniox both recognizes and translates, so its key is needed in every view mode.
+            Mode.PAID -> "Set your Soniox API key in Settings".takeIf { config.sonioxApiKey.isNullOrBlank() }
+            Mode.FREE -> {
+                val translate = _uiState.value.viewMode != ViewMode.TRANSCRIPTION_ONLY
+                val sourceOk = config.sourceLanguage in sourceLanguagesFor(Mode.FREE)
+                val targetOk = !translate || config.targetLanguage in targetLanguagesFor(Mode.FREE, onDeviceTargetCodes())
+                when {
+                    !modelReady() -> "Download the speech model in Settings"
+                    !sourceOk || !targetOk -> "Pick a language the free mode supports"
+                    else -> null
+                }
+            }
+        }
+    }
 
     fun start() {
-        if (!hasSonioxKey()) {
-            _uiState.update { it.copy(canStart = false, errorMessage = "Set your Soniox API key in Settings") }
+        startProblem()?.let { problem ->
+            _uiState.update { it.copy(canStart = false, errorMessage = problem) }
             return
         }
         val config = configRepository.getConfig()

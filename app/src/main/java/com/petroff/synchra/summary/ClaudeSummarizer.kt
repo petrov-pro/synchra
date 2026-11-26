@@ -67,8 +67,15 @@ class ClaudeSummarizer(
                 .system(
                     "You summarize a conversation that the user recorded with their phone, for the " +
                         "user to read later. The user is often a listener in a meeting or call and may " +
-                        "not have said anything. The transcript has no speaker labels, so you usually " +
-                        "cannot tell who said what. Write every field in $targetLanguageName.\n\n" +
+                        "not have said anything. When several voices were heard, the transcript marks " +
+                        "each change of voice with a label like \"Speaker 1:\"; the labels are " +
+                        "told apart by sound, may now and then be wrong, and never say who the speaker " +
+                        "is. Work out who each labeled speaker is from the conversation itself: they " +
+                        "introduce themselves (\"I'm Maria\"), someone addresses them by name " +
+                        "(\"John, what do you think?\" and Speaker 2 answers), or the participants " +
+                        "listed in ABOUT THIS CONVERSATION fit what they say. When it is clear, use the " +
+                        "name instead of \"Speaker N\"; when it is not, keep \"Speaker N\" rather " +
+                        "than guess. Without labels you usually cannot tell who said what. Write every field in $targetLanguageName.\n\n" +
                         "Fill these fields:\n" +
                         "- title: a name for the meeting, at most 60 characters, one line.\n" +
                         "- topic: what the meeting was about, in one short sentence.\n" +
@@ -85,8 +92,8 @@ class ClaudeSummarizer(
                         "conversations: the user, their company, team, product or terms. ABOUT THIS CONVERSATION " +
                         "describes this meeting: " +
                         "topic, participants, terms; its participants are the likely speakers, but do " +
-                        "not guess which speaker is which participant unless the transcript makes it " +
-                        "clear. Use both sections only to understand the topic and to spell names and " +
+                        "not match a speaker to a participant unless the transcript makes it clear " +
+                        "(see above). Use both sections only to understand the topic and to spell names and " +
                         "terms right: never summarize them or present them as something said. Reply " +
                         "only with the JSON."
                 )
