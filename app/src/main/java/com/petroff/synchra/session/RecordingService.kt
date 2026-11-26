@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import com.petroff.synchra.config.Mode
+import com.petroff.synchra.config.limitLabel
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -30,6 +31,9 @@ fun recordingStatusText(isSending: Boolean, mode: Mode): String = when {
     isSending -> "Sending audio"
     else -> "Listening · nothing sent"
 }
+
+/** Shown when the session time limit paused recording (Continue happens in the app). */
+fun pausedNotificationText(minutes: Int): String = "Paused after ${limitLabel(minutes)} — tap to continue"
 
 /**
  * Keeps a live session recording while the app is in the background or the screen is locked
@@ -92,6 +96,42 @@ class RecordingService : Service() {
         const val CHANNEL_ID = "recording"
         const val NOTIFICATION_ID = 1
         const val ACTION_STOP = "com.petroff.synchra.action.STOP_RECORDING"
+
+        private const val PAUSED_CHANNEL_ID = "session_paused"
+        private const val PAUSED_NOTIFICATION_ID = 3
+
+        /**
+         * The session time limit paused recording. Android doesn't let the microphone start
+         * from the background, so the tap opens the app, where the dialog asks to continue.
+         */
+        fun showPaused(context: Context, minutes: Int) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            // Default importance, unlike recording's quiet one: the customer should notice.
+            manager.createNotificationChannel(
+                NotificationChannel(PAUSED_CHANNEL_ID, "Paused recording", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    description = "Shown when a recording pauses after the session time limit"
+                }
+            )
+            val open = PendingIntent.getActivity(
+                context, 2,
+                Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_IMMUTABLE,
+            )
+            val notification = NotificationCompat.Builder(context, PAUSED_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_mic)
+                .setContentTitle("Synchra")
+                .setContentText(pausedNotificationText(minutes))
+                .setAutoCancel(true)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentIntent(open)
+                .build()
+            // Without the notification permission this shows nothing; the dialog still waits in the app.
+            runCatching { manager.notify(PAUSED_NOTIFICATION_ID, notification) }
+        }
+
+        fun clearPaused(context: Context) {
+            context.getSystemService(NotificationManager::class.java).cancel(PAUSED_NOTIFICATION_ID)
+        }
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, RecordingService::class.java))

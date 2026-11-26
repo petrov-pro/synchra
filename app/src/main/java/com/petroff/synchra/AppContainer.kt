@@ -92,6 +92,12 @@ class AppContainer(private val context: Context) {
                 if (listening) RecordingService.start(context)
             }
         }
+        // Paused by the session time limit: a notification, for when the app isn't on screen.
+        appScope.launch {
+            liveSession.uiState.map { it.pausedAfterMinutes }.distinctUntilChanged().collect { minutes ->
+                if (minutes != null) RecordingService.showPaused(context, minutes) else RecordingService.clearPaused(context)
+            }
+        }
     }
 
     // Free mode: recognition and translation on the phone.

@@ -20,4 +20,10 @@ class RecordingNotificationTextTest {
     fun `free mode only listens`() {
         assertEquals("Listening", recordingStatusText(isSending = false, mode = Mode.FREE))
     }
+
+    @Test
+    fun `paused notification text`() {
+        assertEquals("Paused after 1 h — tap to continue", pausedNotificationText(60))
+        assertEquals("Paused after 30 min — tap to continue", pausedNotificationText(30))
+    }
 }
