@@ -5,9 +5,6 @@ import androidx.room.Room
 import com.petroff.synchra.asr.MicAudioSource
 import com.petroff.synchra.asr.ModelDownloads
 import com.petroff.synchra.asr.SherpaOnnxAsrEngine
-import com.petroff.synchra.asr.SherpaSpeakerEmbedder
-import com.petroff.synchra.asr.SpeakerModelDownloads
-import com.petroff.synchra.asr.ModelState
 import com.petroff.synchra.asr.createNemotronDecoder
 import com.petroff.synchra.local.LocalSpeechTranslator
 import com.petroff.synchra.session.ModeSwitchingSpeechTranslator
@@ -68,11 +65,7 @@ class AppContainer(private val context: Context) {
 
     // Free mode's speech model: an older model left in filesDir/model is replaced when this
     // one is downloaded (ModelStore checks which model the files belong to).
-    // "Speaker N:" labels in Free mode: a small model fetched once the speech model is there,
-    // deleted with it.
-    private val speakerModel = SpeakerModelDownloads(context)
-
-    val modelDownloads = ModelDownloads(context, onDelete = { speakerModel.delete() })
+    val modelDownloads = ModelDownloads(context)
 
     val summaryJobs = SummaryJobs(appScope, historyRepository, summarizer, crashReporter)
 
@@ -99,11 +92,6 @@ class AppContainer(private val context: Context) {
                 if (listening) RecordingService.start(context)
             }
         }
-        appScope.launch {
-            modelDownloads.state.map { it == ModelState.Ready }.distinctUntilChanged().collect { ready ->
-                if (ready) speakerModel.ensure()
-            }
-        }
     }
 
     // Free mode: recognition and translation on the phone.
@@ -116,9 +104,6 @@ class AppContainer(private val context: Context) {
         scope = appScope,
         // liveSession is built after this engine; the callback only runs once a session starts.
         onPreparing = { liveSession.setPreparing(it) },
-        speakerEmbedderFactory = {
-            speakerModel.store.takeIf { it.isReady() }?.let { SherpaSpeakerEmbedder(it.file.absolutePath) }
-        },
     )
 
     fun buildSpeechTranslator(): SpeechTranslator = SonioxSpeechTranslator(

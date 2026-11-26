@@ -45,7 +45,7 @@ def utterances(speaker):
     return [f for f in files if 1.5 <= sf.info(f).duration <= 9]
 
 
-def build(speakers, turns, seed):
+def build(speakers, turns, seed, gap=(0.2, 2.5)):
     """Turns of 1-2 utterances; pauses 0.2-2.5 s (often under the gate's 1.5 s); each speaker
     at their own loudness, as people at different distances from the phone."""
     rng = random.Random(seed)
@@ -68,7 +68,7 @@ def build(speakers, turns, seed):
         for _ in range(rng.choice([1, 1, 2])):
             if not pools[who]:
                 break
-            add(noise.normal(0, 0.002, int(rng.uniform(0.2, 2.5) * SR)).astype("float32"), None)
+            add(noise.normal(0, 0.002, int(rng.uniform(*gap) * SR)).astype("float32"), None)
             x, sr = sf.read(pools[who].pop(), dtype="float32")
             assert sr == SR
             add(x * gain[who] + noise.normal(0, 0.002, len(x)).astype("float32"), who)
