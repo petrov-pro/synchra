@@ -18,6 +18,7 @@ class FakeHistoryRepository : HistoryRepository {
 
     override suspend fun addRecord(record: ConversationRecord) {
         addedRecords.add(record)
+        records.removeAll { it.id == record.id }
         records.add(0, record)
     }
 

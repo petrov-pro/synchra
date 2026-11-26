@@ -121,5 +121,15 @@ class RoomHistoryRepositoryTest {
 
         assertEquals("Cardiology lecture", repository.getRecord("1")!!.context)
     }
+
+    @Test
+    fun addingARecordWithAnExistingIdReplacesIt() = runBlocking {
+        repository.addRecord(record(id = "1").copy(sourceText = "first part"))
+        repository.addRecord(record(id = "1").copy(sourceText = "first part\n\nsecond part"))
+
+        val all = repository.getRecords()
+        assertEquals(1, all.size)
+        assertEquals("first part\n\nsecond part", all.single().sourceText)
+    }
 }
 

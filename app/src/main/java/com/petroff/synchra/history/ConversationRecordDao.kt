@@ -2,6 +2,7 @@ package com.petroff.synchra.history
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 
 @Dao
@@ -20,7 +21,8 @@ interface ConversationRecordDao {
     /** [query] must be LIKE-escaped with '\\' (see RoomHistoryRepository.search). */
     suspend fun search(query: String): List<ConversationRecordEntity>
 
-    @Insert
+    // A paused session saves its text and saves it again, longer, under the same id later.
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: ConversationRecordEntity)
 
     @Query("DELETE FROM conversation_records WHERE id = :id")
