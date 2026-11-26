@@ -468,7 +468,6 @@ class SessionViewModelTest {
         assertFalse(speechTranslator.stopped)
         passMinutes(1)
         assertTrue(speechTranslator.stopped)
-        assertFalse(state.isListening)
 
         speechTranslator.finish("a", "A")
         dispatcher.scheduler.runCurrent()
@@ -608,5 +607,35 @@ class SessionViewModelTest {
         speechTranslator.finish("c", "C")
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(2, historyRepository.records.size)
+    }
+
+    @Test
+    fun `recording holds until the paused engine finishes`() {
+        // RecordingService keeps the process alive while isListening: Soniox's last text and
+        // the save must not run in an unprotected background process.
+        startWithLimit()
+        passMinutes(60)
+        assertTrue(speechTranslator.stopped)
+        assertTrue(state.isListening)
+        speechTranslator.finish("a", "A")
+        dispatcher.scheduler.runCurrent()
+        assertFalse(state.isListening)
+        assertEquals(60, state.pausedAfterMinutes)
+    }
+
+    @Test
+    fun `continue keeps a summary made during the pause`() {
+        pauseWith("a", "A")
+        val id = historyRepository.records.single().id
+        kotlinx.coroutines.runBlocking { historyRepository.setSummary(id, "Billing call", "They agreed.") }
+        liveSession.continueSession()
+        viewModel.stop()
+        speechTranslator.finish("b", "B")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val record = historyRepository.records.single()
+        assertEquals("a\n\nb", record.sourceText)
+        assertEquals("Billing call", record.title)
+        assertEquals("They agreed.", record.summary)
     }
 }

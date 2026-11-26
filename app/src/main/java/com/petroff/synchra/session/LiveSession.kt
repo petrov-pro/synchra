@@ -241,8 +241,9 @@ class LiveSession(
             if (session != currentSession || !_uiState.value.isListening) return@launch
             crashReporter.log("session paused after limit")
             pausing = session to minutes
+            // isListening stays true until onFinished: RecordingService keeps the process alive
+            // while the engine hands over its last text and the record is saved.
             speechTranslator.stop()
-            _uiState.update { it.copy(isListening = false, isSending = false) }
         }
     }
 
@@ -274,7 +275,9 @@ class LiveSession(
             userContext = userContext.ifBlank { null },
         )
         scope.launch {
-            historyRepository.addRecord(record)
+            // Saved before at a pause: a title and summary made meanwhile are kept.
+            val earlier = historyRepository.getRecord(record.id)
+            historyRepository.addRecord(record.copy(title = earlier?.title, summary = earlier?.summary))
             // Summary target only for the session on screen; an older one is just saved.
             if (isCurrentSession) _uiState.update { it.copy(lastRecordId = record.id) }
         }
