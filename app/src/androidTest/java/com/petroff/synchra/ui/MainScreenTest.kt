@@ -594,4 +594,30 @@ class MainScreenTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("sourceJumpToLatest").assertDoesNotExist()
     }
+
+    @Test
+    fun pausedSessionAsksToContinue() {
+        var continued = 0
+        var stopped = 0
+        composeRule.setContent {
+            MainScreen(
+                uiState = SessionUiState(pausedAfterMinutes = 60, sourceText = "hello"),
+                sourceLanguage = english,
+                targetLanguage = russian,
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+                onContinueSession = { continued++ },
+                onStopPaused = { stopped++ },
+            )
+        }
+
+        composeRule.onNodeWithText("Paused after 1 h. Continue?").assertExists()
+        composeRule.onNodeWithText("Continue").performClick()
+        assertEquals(1, continued)
+        composeRule.onNodeWithText("Stop").performClick()
+        assertEquals(1, stopped)
+    }
 }

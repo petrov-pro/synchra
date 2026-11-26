@@ -16,5 +16,7 @@ class SessionViewModel(private val liveSession: LiveSession) : ViewModel() {
 
     fun stop() = liveSession.stop()
 
+    fun continueSession() = liveSession.continueSession()
+
     fun refreshLastRecord() = liveSession.refreshLastRecord()
 }

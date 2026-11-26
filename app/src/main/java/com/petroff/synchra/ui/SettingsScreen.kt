@@ -49,6 +49,9 @@ import com.petroff.synchra.config.DEFAULT_SOURCE_LANGUAGE
 import com.petroff.synchra.config.DEFAULT_TARGET_LANGUAGE
 import com.petroff.synchra.config.Language
 import com.petroff.synchra.config.Mode
+import com.petroff.synchra.config.limitLabel
+import com.petroff.synchra.config.SESSION_LIMIT_CHOICES
+import com.petroff.synchra.config.DEFAULT_SESSION_LIMIT_MINUTES
 import com.petroff.synchra.config.sourceLanguagesFor
 import com.petroff.synchra.config.targetLanguagesFor
 import com.petroff.synchra.asr.ModelState
@@ -87,6 +90,9 @@ fun SettingsScreen(
     // Applied at once too.
     showSilenceIcon: Boolean = true,
     onShowSilenceIconChange: (Boolean) -> Unit = {},
+    // Paid mode; applied at once too.
+    sessionLimitMinutes: Int = DEFAULT_SESSION_LIMIT_MINUTES,
+    onSessionLimitChange: (Int) -> Unit = {},
     // Free / Paid: switched here, applied on Save like the keys.
     currentMode: Mode = Mode.PAID,
     onSaveMode: (Mode) -> Unit = {},
@@ -325,6 +331,24 @@ fun SettingsScreen(
                         onCheckedChange = onShowSilenceIconChange,
                         modifier = Modifier.testTag("silenceIconSwitch"),
                     )
+                }
+            }
+
+            if (modeField == Mode.PAID) FieldRow(
+                field = "Session time limit",
+                helpText = "Stops a forgotten recording so it doesn't keep spending your Soniox " +
+                    "balance: after this long without a touch in Synchra, recording pauses and " +
+                    "asks whether to continue. Any touch in the app starts the count over.",
+                onShowHelp = { helpDialog = it },
+            ) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().testTag("sessionLimit")) {
+                    SESSION_LIMIT_CHOICES.forEachIndexed { index, minutes ->
+                        SegmentedButton(
+                            selected = sessionLimitMinutes == minutes,
+                            onClick = { onSessionLimitChange(minutes) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = SESSION_LIMIT_CHOICES.size),
+                        ) { Text(if (minutes == 0) "Off" else limitLabel(minutes)) }
+                    }
                 }
             }
 

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import com.petroff.synchra.config.limitLabel
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -74,8 +76,15 @@ fun MainScreen(
     onCrashReportsConsent: (Boolean) -> Unit = {},
     // Settings: a small icon in the text's corner while nobody speaks.
     showSilenceIcon: Boolean = true,
+    // A session paused by the time limit: Continue listens on, Stop ends it.
+    onContinueSession: () -> Unit = {},
+    onStopPaused: () -> Unit = {},
 ) {
     var showContextDialog by remember { mutableStateOf(false) }
+
+    uiState.pausedAfterMinutes?.let { minutes ->
+        PausedDialog(minutes, onContinue = onContinueSession, onStop = onStopPaused)
+    }
 
     if (askCrashReportsConsent) {
         CrashReportsConsentDialog(onAnswer = onCrashReportsConsent)
@@ -291,4 +300,16 @@ internal fun ViewMode.label(): String = when (this) {
     ViewMode.BOTH -> "Both"
     ViewMode.TRANSCRIPTION_ONLY -> "Transcription"
     ViewMode.TRANSLATION_ONLY -> "Translation"
+}
+
+// Not dismissed by a tap outside or Back: the customer decides whether to keep paying.
+@Composable
+private fun PausedDialog(minutes: Int, onContinue: () -> Unit, onStop: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = {},
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+        text = { Text("Paused after ${limitLabel(minutes)}. Continue?") },
+        confirmButton = { TextButton(onClick = onContinue) { Text("Continue") } },
+        dismissButton = { TextButton(onClick = onStop) { Text("Stop") } },
+    )
 }

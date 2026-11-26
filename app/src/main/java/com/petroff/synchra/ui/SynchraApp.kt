@@ -130,6 +130,8 @@ fun SynchraApp(container: AppContainer) {
                             },
                             // Free mode needs no key.
                             showSilenceIcon = config.showSilenceIcon,
+                            onContinueSession = sessionViewModel::continueSession,
+                            onStopPaused = sessionViewModel::stop,
                             hasApiKey = config.mode == Mode.FREE || !config.sonioxApiKey.isNullOrBlank(),
                             onApiKeyRequired = {
                                 focusApiKeyOnSettingsOpen = true
@@ -233,6 +235,11 @@ fun SynchraApp(container: AppContainer) {
                             showSilenceIcon = config.showSilenceIcon,
                             onShowSilenceIconChange = {
                                 container.configRepository.setShowSilenceIcon(it)
+                                config = container.configRepository.getConfig()
+                            },
+                            sessionLimitMinutes = config.sessionLimitMinutes,
+                            onSessionLimitChange = {
+                                container.configRepository.setSessionLimitMinutes(it)
                                 config = container.configRepository.getConfig()
                             },
                             onSwapLanguages = {
