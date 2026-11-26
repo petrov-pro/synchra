@@ -139,7 +139,7 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
 }
 
 /** Starts, cancels and deletes the speech model download, and reports its state. */
-class ModelDownloads(private val context: Context) {
+class ModelDownloads(private val context: Context, private val onDelete: () -> Unit = {}) {
 
     private val workManager get() = WorkManager.getInstance(context)
     val store = ModelStore(speechModelDir(context))
@@ -168,6 +168,7 @@ class ModelDownloads(private val context: Context) {
     fun delete() {
         workManager.cancelUniqueWork(WORK_NAME)
         store.delete()
+        onDelete()
         filesChanged.value++
     }
 

@@ -25,7 +25,10 @@ class LocalSpeechTranslatorTest {
     // Runs while the recognizer is being created: lets a test press Stop at that moment.
     private var whileCreatingRecognizer: () -> Unit = {}
 
-    private fun TestScope.engine(gate: () -> SilenceGate = { SilenceGate() }) = LocalSpeechTranslator(
+    private fun TestScope.engine(
+        gate: () -> SilenceGate = { SilenceGate() },
+        embedder: () -> SpeakerEmbedder? = { null },
+    ) = LocalSpeechTranslator(
         audioSourceFactory = { audio },
         recognizerFactory = { language, source ->
             whileCreatingRecognizer()
@@ -35,6 +38,7 @@ class LocalSpeechTranslatorTest {
         scope = this,
         onPreparing = { preparing += it },
         silenceGateFactory = gate,
+        speakerEmbedderFactory = embedder,
     )
 
     private fun LocalSpeechTranslator.begin(target: String? = "ru") = start(
@@ -158,7 +162,7 @@ class LocalSpeechTranslatorTest {
 
     @Test
     fun `a long silence stops the session by itself`() = runTest {
-        val engine = engine { SilenceGate(autoStopMs = 1_000) }
+        val engine = engine(gate = { SilenceGate(autoStopMs = 1_000) })
         engine.begin()
         advanceUntilIdle()
         recognizer!!.audio.start { }
@@ -180,5 +184,83 @@ class LocalSpeechTranslatorTest {
 
         assertFalse(recognizer!!.started)
         assertEquals(1, finished.size)
+    }
+
+    // Voice prints by loudness: 0.1 is one speaker, 0.2 another.
+    private val voices = object : SpeakerEmbedder {
+        var released = false
+        override fun embed(samples: FloatArray) =
+            if (samples[0] < 0.15f) floatArrayOf(1f, 0.1f) else floatArrayOf(0.1f, 1f)
+        override fun release() {
+            released = true
+        }
+    }
+
+    private fun speak(voice: Float, ms: Int) = repeat(ms / 100) { audio.push(FloatArray(1_600) { voice }) }
+    private fun pause(ms: Int) = speak(0f, ms)
+
+    @Test
+    fun `two voices get speaker labels in source and translation`() = runTest {
+        val engine = engine(embedder = { voices })
+        engine.begin()
+        advanceUntilIdle()
+        val asr = recognizer!!
+        asr.audio.start { }
+
+        speak(0.1f, 1_000)
+        asr.emit("hello there", isFinal = true)
+        pause(700)
+        speak(0.2f, 1_000)
+        asr.emit("hi", isFinal = true)
+        pause(700)
+        advanceUntilIdle()
+        assertEquals("Speaker 1: hello there\n\nSpeaker 2: hi", updates.last().source)
+
+        engine.stop()
+        advanceUntilIdle()
+        assertEquals("Speaker 1: hello there\n\nSpeaker 2: hi", finished.single().source)
+        assertEquals("Speaker 1: HELLO THERE\n\nSpeaker 2: HI", finished.single().translation)
+        assertTrue(voices.released)
+    }
+
+    @Test
+    fun `a new voice mid-phrase is labeled where the recognizer closes the phrase`() = runTest {
+        val engine = engine(embedder = { voices })
+        engine.begin()
+        advanceUntilIdle()
+        val asr = recognizer!!
+        asr.audio.start { }
+
+        speak(0.1f, 1_000)
+        asr.emit("hello")
+        pause(700)
+        speak(0.2f, 1_000) // the recognizer still holds "hello …" open
+        asr.emit("hello there", isFinal = true)
+        asr.emit("hi")
+        engine.stop()
+        advanceUntilIdle()
+
+        assertEquals("Speaker 1: hello there\n\nSpeaker 2: hi", finished.single().source)
+        assertEquals("Speaker 1: HELLO THERE\n\nSpeaker 2: HI", finished.single().translation)
+    }
+
+    @Test
+    fun `one voice, or no speaker model, leaves the text unlabeled`() = runTest {
+        for (embedder in listOf<() -> SpeakerEmbedder?>({ voices }, { null })) {
+            finished.clear()
+            val engine = engine(embedder = embedder)
+            engine.begin(target = null)
+            advanceUntilIdle()
+            val asr = recognizer!!
+            asr.audio.start { }
+            speak(0.1f, 1_000)
+            asr.emit("hello there", isFinal = true)
+            pause(700)
+            speak(0.1f, 1_000)
+            asr.emit("again", isFinal = true)
+            engine.stop()
+            advanceUntilIdle()
+            assertEquals("hello there again", finished.single().source)
+        }
     }
 }

@@ -26,6 +26,8 @@ class SilenceGate(
         val keepalive: Boolean = false,
         /** Silence has lasted long enough to end the session. */
         val autoStop: Boolean = false,
+        /** This chunk itself is speech (not the tail after it): what speaker pieces are cut by. */
+        val speech: Boolean = false,
     )
 
     private val hangoverSamples = hangoverMs * sampleRate / 1000
@@ -57,7 +59,7 @@ class SilenceGate(
             val send = preRoll.toList() + listOf(chunk)
             clearPreRoll()
             samplesSinceSent = 0
-            return Decision(send)
+            return Decision(send, speech = true)
         }
 
         samplesSinceSpeech += chunk.size
