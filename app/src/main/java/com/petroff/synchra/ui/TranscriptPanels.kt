@@ -32,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import com.petroff.synchra.session.ViewMode
@@ -114,8 +116,12 @@ private fun TextPanel(label: String, text: String, modifier: Modifier = Modifier
             Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            val labelColor = MaterialTheme.colorScheme.primary
+            val styled = remember(text, labelColor) {
+                withSpeakerLabels(text, SpanStyle(fontWeight = FontWeight.Bold, color = labelColor))
+            }
             Text(
-                text = text,
+                text = styled,
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier
                     .fillMaxSize()
