@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -117,16 +118,20 @@ private fun TextPanel(label: String, text: String, modifier: Modifier = Modifier
         }
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             val labelColor = MaterialTheme.colorScheme.primary
-            val styled = remember(text, labelColor) {
-                withSpeakerLabels(text, SpanStyle(fontWeight = FontWeight.Bold, color = labelColor))
+            val paragraphs = remember(text, labelColor) {
+                val labelStyle = SpanStyle(fontWeight = FontWeight.Bold, color = labelColor)
+                text.split(PARAGRAPH_BREAK).map { withSpeakerLabels(it, labelStyle) }
             }
-            Text(
-                text = styled,
-                style = MaterialTheme.typography.headlineSmall,
+            // One Text per paragraph, so the gap between them is a small fixed space rather
+            // than a whole blank line of headline-sized text.
+            Column(
+                verticalArrangement = Arrangement.spacedBy(PARAGRAPH_GAP),
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState),
-            )
+            ) {
+                paragraphs.forEach { Text(text = it, style = MaterialTheme.typography.headlineSmall) }
+            }
             JumpToLatestButton(
                 visible = showJump,
                 onClick = {
@@ -159,3 +164,7 @@ private fun JumpToLatestButton(visible: Boolean, onClick: () -> Unit, modifier: 
 
 // How far above the latest text the user must be for the jump button to show.
 private val JUMP_BUTTON_DISTANCE = 120.dp
+
+// How transcripts separate paragraphs (a pause or a change of speaker), and the space shown there.
+private const val PARAGRAPH_BREAK = "\n\n"
+private val PARAGRAPH_GAP = 8.dp
