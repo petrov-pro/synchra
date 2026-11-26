@@ -14,6 +14,7 @@ interface ConfigRepository {
     fun setCrashReportsConsent(consent: Boolean)
     fun setMode(mode: Mode)
     fun setShowSilenceIcon(show: Boolean)
+    fun setSessionLimitMinutes(minutes: Int)
 }
 
 class DefaultConfigRepository(
@@ -38,6 +39,8 @@ class DefaultConfigRepository(
         },
         mode = mode(),
         showSilenceIcon = store.getString(KEY_SILENCE_ICON, "") != SILENCE_ICON_HIDDEN,
+        sessionLimitMinutes = store.getString(KEY_SESSION_LIMIT, "").toIntOrNull()
+            ?.takeIf { it in SESSION_LIMIT_CHOICES } ?: DEFAULT_SESSION_LIMIT_MINUTES,
     )
 
     override fun setApiKey(key: String) {
@@ -78,6 +81,8 @@ class DefaultConfigRepository(
 
     override fun setMode(mode: Mode) =
         store.putString(KEY_MODE, if (mode == Mode.FREE) MODE_FREE else MODE_PAID)
+
+    override fun setSessionLimitMinutes(minutes: Int) = store.putString(KEY_SESSION_LIMIT, minutes.toString())
 
     override fun setShowSilenceIcon(show: Boolean) =
         store.putString(KEY_SILENCE_ICON, if (show) SILENCE_ICON_SHOWN else SILENCE_ICON_HIDDEN)
@@ -128,6 +133,7 @@ class DefaultConfigRepository(
         private const val MODE_FREE = "free"
         private const val MODE_PAID = "paid"
         private const val KEY_SILENCE_ICON = "silence_icon"
+        private const val KEY_SESSION_LIMIT = "session_limit_minutes"
         private const val SILENCE_ICON_SHOWN = "shown"
         private const val SILENCE_ICON_HIDDEN = "hidden"
     }

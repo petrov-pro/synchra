@@ -5,6 +5,13 @@ package com.petroff.synchra.config
 const val MAX_GENERAL_CONTEXT_CHARS = 6_000
 const val MAX_CONVERSATION_CONTEXT_CHARS = 2_000
 
+/** Session time limit choices in minutes; 0 = off. */
+val SESSION_LIMIT_CHOICES = listOf(0, 30, 60, 120)
+const val DEFAULT_SESSION_LIMIT_MINUTES = 60
+
+/** "30 min", "1 h", "2 h". */
+fun limitLabel(minutes: Int): String = if (minutes % 60 == 0) "${minutes / 60} h" else "$minutes min"
+
 data class AppConfig(
     // Anthropic API (Claude), kept for conversation summaries.
     val apiBaseUrl: String,
@@ -26,6 +33,9 @@ data class AppConfig(
     val mode: Mode = Mode.PAID,
     // A small icon in the corner of the live text while nobody speaks.
     val showSilenceIcon: Boolean = true,
+    // Paid mode: a session with no touch in the app for this long pauses and asks to continue
+    // (a forgotten session would keep paying Soniox). 0 = off.
+    val sessionLimitMinutes: Int = DEFAULT_SESSION_LIMIT_MINUTES,
 ) {
     val selectedLanguagePair: LanguagePair
         get() = LanguagePair(sourceLanguage.code, sourceLanguage.name, targetLanguage.code, targetLanguage.name)

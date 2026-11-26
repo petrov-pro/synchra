@@ -210,4 +210,30 @@ class ConfigRepositoryTest {
         store.putString("mode", "garbage")
         assertEquals(Mode.FREE, repo.getConfig().mode)
     }
+
+    @Test
+    fun `session limit defaults to one hour`() {
+        assertEquals(60, repo.getConfig().sessionLimitMinutes)
+    }
+
+    @Test
+    fun `session limit is saved`() {
+        repo.setSessionLimitMinutes(30)
+        assertEquals(30, repo.getConfig().sessionLimitMinutes)
+        repo.setSessionLimitMinutes(0)
+        assertEquals(0, repo.getConfig().sessionLimitMinutes)
+    }
+
+    @Test
+    fun `an unknown stored limit falls back to one hour`() {
+        repo.setSessionLimitMinutes(45)
+        assertEquals(60, repo.getConfig().sessionLimitMinutes)
+    }
+
+    @Test
+    fun `limit labels`() {
+        assertEquals("30 min", limitLabel(30))
+        assertEquals("1 h", limitLabel(60))
+        assertEquals("2 h", limitLabel(120))
+    }
 }
