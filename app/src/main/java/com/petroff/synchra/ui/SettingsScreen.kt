@@ -216,7 +216,7 @@ fun SettingsScreen(
                             ) { Text(label) }
                         }
                     }
-                    if (isRecording) StopRecordingFirst()
+                    if (isRecording) StopRecordingFirst("switch the mode")
                 }
             }
 
@@ -383,8 +383,9 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun StopRecordingFirst() {
-    Text("Stop recording first", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun StopRecordingFirst(toDo: String) {
+    // Says why the control is grey and where to go: Stop is on the main screen, not here.
+    Text("Recording is on — stop it on the main screen to $toDo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 /** The speech model's status with the one button that fits it. */
@@ -417,6 +418,9 @@ private fun SpeechModelRow(
                 is ModelState.Downloading, is ModelState.Unpacking -> TextButton(onClick = onCancel) { Text("Cancel") }
                 ModelState.Ready -> TextButton(onClick = onDelete, enabled = !isRecording) { Text("Delete") }
             }
+        }
+        if (isRecording && (state == ModelState.Ready || state == ModelState.Failed)) {
+            StopRecordingFirst("delete the model")
         }
         if (state is ModelState.Downloading) {
             LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())

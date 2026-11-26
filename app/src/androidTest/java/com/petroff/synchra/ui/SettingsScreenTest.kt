@@ -381,7 +381,16 @@ class SettingsScreenTest {
         showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Ready, isRecording = true)
         composeRule.onNodeWithText("Delete").assertIsNotEnabled()
         composeRule.onNodeWithText("Paid").assertIsNotEnabled()
-        composeRule.onNodeWithText("Stop recording first").assertExists()
+        // Each locked control says why and what to do.
+        composeRule.onNodeWithText("Recording is on — stop it on the main screen to switch the mode").assertExists()
+        composeRule.onNodeWithText("Recording is on — stop it on the main screen to delete the model").assertExists()
+    }
+
+    @Test
+    fun noRecordingNoLockHints() {
+        showSettings(com.petroff.synchra.config.Mode.FREE, com.petroff.synchra.asr.ModelState.Ready)
+        composeRule.onNodeWithText("Recording is on — stop it on the main screen to switch the mode").assertDoesNotExist()
+        composeRule.onNodeWithText("Recording is on — stop it on the main screen to delete the model").assertDoesNotExist()
     }
 
     @Test
