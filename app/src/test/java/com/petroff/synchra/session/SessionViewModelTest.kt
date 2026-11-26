@@ -16,8 +16,10 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import com.petroff.synchra.config.Mode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -92,6 +94,8 @@ class SessionViewModelTest {
             defaultApiBaseUrl = "https://api.anthropic.com",
         )
         configRepository.setSonioxApiKey("snx-test")
+        // Most tests run the scheduler idle while listening; the time limit has its own tests.
+        configRepository.setSessionLimitMinutes(0)
         historyRepository = FakeHistoryRepository()
         crashReporter = RecordingCrashReporter()
         liveSession = LiveSession(
@@ -440,5 +444,169 @@ class SessionViewModelTest {
         modelReady = true
         liveSession.refreshCanStart()
         assertNull(viewModel.uiState.value.startHint)
+    }
+
+    // --- Session time limit ---
+
+    private fun passMinutes(minutes: Long) {
+        dispatcher.scheduler.advanceTimeBy(minutes * 60_000)
+        dispatcher.scheduler.runCurrent()
+    }
+
+    private fun startWithLimit(minutes: Int = 60) {
+        configRepository.setSessionLimitMinutes(minutes)
+        viewModel.start()
+        dispatcher.scheduler.runCurrent()
+    }
+
+    private val state get() = viewModel.uiState.value
+
+    @Test
+    fun `paid session pauses after the limit without activity`() {
+        startWithLimit()
+        passMinutes(59)
+        assertFalse(speechTranslator.stopped)
+        passMinutes(1)
+        assertTrue(speechTranslator.stopped)
+        assertFalse(state.isListening)
+
+        speechTranslator.finish("a", "A")
+        dispatcher.scheduler.runCurrent()
+        assertEquals(60, state.pausedAfterMinutes)
+        assertEquals("a", historyRepository.records.single().sourceText)
+    }
+
+    @Test
+    fun `pause waits for the engine to finish`() {
+        startWithLimit()
+        passMinutes(60)
+        assertTrue(speechTranslator.stopped)
+        assertNull(state.pausedAfterMinutes)
+    }
+
+    @Test
+    fun `user activity resets the limit`() {
+        startWithLimit()
+        passMinutes(50)
+        liveSession.onUserActivity()
+        passMinutes(50)
+        assertFalse(speechTranslator.stopped)
+        passMinutes(10)
+        assertTrue(speechTranslator.stopped)
+    }
+
+    @Test
+    fun `free mode and an off limit never pause`() {
+        startWithLimit(0)
+        passMinutes(180)
+        assertFalse(speechTranslator.stopped)
+        viewModel.stop()
+        speechTranslator.finish("x", "X")
+
+        speechTranslator.stopped = false
+        modelReady = true
+        configRepository.setMode(Mode.FREE)
+        liveSession.refreshCanStart()
+        startWithLimit(60)
+        passMinutes(180)
+        assertFalse(speechTranslator.stopped)
+    }
+
+    private fun pauseWith(source: String, translation: String) {
+        startWithLimit()
+        speechTranslator.emit(source, translation)
+        passMinutes(60)
+        speechTranslator.finish(source, translation)
+        dispatcher.scheduler.runCurrent()
+    }
+
+    @Test
+    fun `continue appends to the earlier text`() {
+        pauseWith("a", "A")
+        liveSession.continueSession()
+        assertEquals(2, speechTranslator.startCount)
+        assertNull(state.pausedAfterMinutes)
+        assertTrue(state.isListening)
+        assertEquals("a", state.sourceText)
+
+        speechTranslator.emit("b", "B")
+        assertEquals("a\n\nb", state.sourceText)
+        assertEquals("A\n\nB", state.translatedText)
+    }
+
+    @Test
+    fun `continue keeps one history record with the whole text`() {
+        pauseWith("a", "A")
+        liveSession.continueSession()
+        viewModel.stop()
+        speechTranslator.finish("b", "B")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val record = historyRepository.records.single()
+        assertEquals("a\n\nb", record.sourceText)
+        assertEquals("A\n\nB", record.translatedText)
+    }
+
+    @Test
+    fun `continue without a key stays paused`() {
+        pauseWith("a", "A")
+        configRepository.setSonioxApiKey("")
+        liveSession.continueSession()
+
+        assertEquals(1, speechTranslator.startCount)
+        assertEquals(60, state.pausedAfterMinutes)
+        assertNotNull(state.errorMessage)
+        assertEquals("a", state.sourceText)
+    }
+
+    @Test
+    fun `stop while paused ends the conversation`() {
+        pauseWith("a", "A")
+        viewModel.stop()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(state.pausedAfterMinutes)
+        assertEquals(1, speechTranslator.startCount)
+        assertEquals("a", historyRepository.records.single().sourceText)
+        assertEquals("a", state.sourceText)
+    }
+
+    @Test
+    fun `silence auto-stop cancels the limit`() {
+        startWithLimit()
+        passMinutes(5)
+        speechTranslator.autoStop()
+        speechTranslator.finish("a", "A")
+        speechTranslator.stopped = false
+        passMinutes(120)
+        assertNull(state.pausedAfterMinutes)
+        assertFalse(speechTranslator.stopped)
+    }
+
+    @Test
+    fun `limit is read when re-armed`() {
+        startWithLimit(60)
+        passMinutes(10)
+        configRepository.setSessionLimitMinutes(30)
+        liveSession.onUserActivity()
+        passMinutes(30)
+        assertTrue(speechTranslator.stopped)
+    }
+
+    @Test
+    fun `a new start clears the earlier text`() {
+        pauseWith("a", "A")
+        liveSession.continueSession()
+        viewModel.stop()
+        speechTranslator.finish("b", "B")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.start()
+        speechTranslator.emit("c", "C")
+        assertEquals("c", state.sourceText)
+        viewModel.stop()
+        speechTranslator.finish("c", "C")
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(2, historyRepository.records.size)
     }
 }

@@ -27,4 +27,7 @@ data class SessionUiState(
     val mode: Mode = Mode.PAID,
     // Free mode: why Start is off, shown under it (Paid sends the user to the key instead).
     val startHint: String? = null,
+    // Paid mode: stopped by the session time limit (this many minutes without a touch in the
+    // app); the dialog asks to continue. Null when not paused.
+    val pausedAfterMinutes: Int? = null,
 )

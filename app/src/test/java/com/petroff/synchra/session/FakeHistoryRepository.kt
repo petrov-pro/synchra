@@ -5,7 +5,7 @@ import com.petroff.synchra.history.HistoryRepository
 
 class FakeHistoryRepository : HistoryRepository {
     val addedRecords = mutableListOf<ConversationRecord>()
-    private val records = mutableListOf<ConversationRecord>()
+    val records = mutableListOf<ConversationRecord>()
 
     override suspend fun getRecords(): List<ConversationRecord> = records.toList()
 
