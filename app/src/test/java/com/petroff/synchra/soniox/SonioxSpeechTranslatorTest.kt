@@ -109,6 +109,7 @@ class SonioxSpeechTranslatorTest {
         assertTrue(config.contains("\"language_hints\":[\"en\"]"))
         assertTrue(config.contains("\"translation\":{\"type\":\"one_way\",\"target_language\":\"ru\"}"))
         assertTrue(config.contains("\"enable_endpoint_detection\":true"))
+        assertTrue(config.contains("\"enable_speaker_diarization\":true"))
         assertTrue(config.contains("\"context\":{\"text\":\"Cardiology lecture\"}"))
         // 3 float samples -> 3 little-endian 16-bit PCM samples
         assertEquals(6, fakeServer.binaries.poll(5, TimeUnit.SECONDS)!!.size)

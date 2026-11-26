@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -50,6 +52,14 @@ fun SynchraApp(container: AppContainer) {
                     factory = SessionViewModelFactory(container)
                 )
                 val uiState by sessionViewModel.uiState.collectAsState()
+
+                // The screen stays on while recording, so the live text can be read without
+                // touching the phone; it may sleep again as usual once stopped.
+                val view = LocalView.current
+                DisposableEffect(view, uiState.isListening) {
+                    view.keepScreenOn = uiState.isListening
+                    onDispose { view.keepScreenOn = false }
+                }
 
                 // Re-read config whenever the visible screen changes, so edits made in
                 // Settings (API keys, context) are picked up as soon as the user
@@ -119,6 +129,7 @@ fun SynchraApp(container: AppContainer) {
                                 uiState.lastRecordId?.let { navController.navigateOnce("conversation/$it?summarize=true") }
                             },
                             // Free mode needs no key.
+                            showSilenceIcon = config.showSilenceIcon,
                             hasApiKey = config.mode == Mode.FREE || !config.sonioxApiKey.isNullOrBlank(),
                             onApiKeyRequired = {
                                 focusApiKeyOnSettingsOpen = true
@@ -217,6 +228,11 @@ fun SynchraApp(container: AppContainer) {
                             onCrashReportsChange = {
                                 container.configRepository.setCrashReportsConsent(it)
                                 container.crashReporter.setEnabled(it)
+                                config = container.configRepository.getConfig()
+                            },
+                            showSilenceIcon = config.showSilenceIcon,
+                            onShowSilenceIconChange = {
+                                container.configRepository.setShowSilenceIcon(it)
                                 config = container.configRepository.getConfig()
                             },
                             onSwapLanguages = {

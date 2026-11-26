@@ -84,6 +84,9 @@ fun SettingsScreen(
     // Applied at once, like the languages.
     crashReportsEnabled: Boolean = false,
     onCrashReportsChange: (Boolean) -> Unit = {},
+    // Applied at once too.
+    showSilenceIcon: Boolean = true,
+    onShowSilenceIconChange: (Boolean) -> Unit = {},
     // Free / Paid: switched here, applied on Save like the keys.
     currentMode: Mode = Mode.PAID,
     onSaveMode: (Mode) -> Unit = {},
@@ -307,6 +310,23 @@ fun SettingsScreen(
             }
 
             HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+
+            FieldRow(
+                field = "Silence icon",
+                helpText = "While recording, a small crossed-out microphone in the bottom right " +
+                    "corner of the text shows that nobody is speaking. Each pause also starts " +
+                    "a new paragraph, with or without the icon.",
+                onShowHelp = { helpDialog = it },
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Show the icon during silence", modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = showSilenceIcon,
+                        onCheckedChange = onShowSilenceIconChange,
+                        modifier = Modifier.testTag("silenceIconSwitch"),
+                    )
+                }
+            }
 
             FieldRow(
                 field = "Send crash reports",

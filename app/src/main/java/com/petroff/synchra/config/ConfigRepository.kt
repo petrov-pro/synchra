@@ -13,6 +13,7 @@ interface ConfigRepository {
     fun setSonioxApiKey(key: String)
     fun setCrashReportsConsent(consent: Boolean)
     fun setMode(mode: Mode)
+    fun setShowSilenceIcon(show: Boolean)
 }
 
 class DefaultConfigRepository(
@@ -36,6 +37,7 @@ class DefaultConfigRepository(
             else -> null
         },
         mode = mode(),
+        showSilenceIcon = store.getString(KEY_SILENCE_ICON, "") != SILENCE_ICON_HIDDEN,
     )
 
     override fun setApiKey(key: String) {
@@ -76,6 +78,9 @@ class DefaultConfigRepository(
 
     override fun setMode(mode: Mode) =
         store.putString(KEY_MODE, if (mode == Mode.FREE) MODE_FREE else MODE_PAID)
+
+    override fun setShowSilenceIcon(show: Boolean) =
+        store.putString(KEY_SILENCE_ICON, if (show) SILENCE_ICON_SHOWN else SILENCE_ICON_HIDDEN)
 
     // Users who already pay for Soniox keep the paid engines after the update; everyone else
     // starts with the free, on-device ones.
@@ -122,5 +127,8 @@ class DefaultConfigRepository(
         private const val KEY_MODE = "mode"
         private const val MODE_FREE = "free"
         private const val MODE_PAID = "paid"
+        private const val KEY_SILENCE_ICON = "silence_icon"
+        private const val SILENCE_ICON_SHOWN = "shown"
+        private const val SILENCE_ICON_HIDDEN = "hidden"
     }
 }

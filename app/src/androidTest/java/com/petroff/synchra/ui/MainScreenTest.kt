@@ -12,6 +12,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -532,5 +534,64 @@ class MainScreenTest {
     fun contextIsShownInPaidMode() {
         showMain(SessionUiState(mode = com.petroff.synchra.config.Mode.PAID))
         composeRule.onNodeWithContentDescription("Context").assertExists()
+    }
+
+    @Test
+    fun theSilenceIconShowsWhileNobodySpeaksUnlessTurnedOff() {
+        var state by mutableStateOf(SessionUiState(isListening = true, isSending = false))
+        var showIcon by mutableStateOf(true)
+        composeRule.setContent {
+            MainScreen(
+                uiState = state,
+                sourceLanguage = english,
+                targetLanguage = russian,
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+                showSilenceIcon = showIcon,
+            )
+        }
+
+        composeRule.onNodeWithTag("silenceIcon").assertExists()
+        state = state.copy(isSending = true)
+        composeRule.onNodeWithTag("silenceIcon").assertDoesNotExist()
+        state = state.copy(isSending = false)
+        showIcon = false
+        composeRule.onNodeWithTag("silenceIcon").assertDoesNotExist()
+        showIcon = true
+        state = SessionUiState(isListening = false)
+        composeRule.onNodeWithTag("silenceIcon").assertDoesNotExist()
+    }
+
+    @Test
+    fun scrollingBackStopsFollowingTheTextUntilTheJumpButton() {
+        val longText = (1..200).joinToString(" ") { "word$it" }
+        var state by mutableStateOf(SessionUiState(isListening = true, viewMode = ViewMode.TRANSCRIPTION_ONLY, sourceText = longText))
+        composeRule.setContent {
+            MainScreen(
+                uiState = state,
+                sourceLanguage = english,
+                targetLanguage = russian,
+                currentConversationContext = "",
+                onToggleListening = {},
+                onViewModeChange = {},
+                onOpenSettings = {},
+                onSaveConversationContext = {},
+            )
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("sourceJumpToLatest").assertDoesNotExist()
+
+        composeRule.onNodeWithTag("sourcePanel").performTouchInput { swipeDown(startY = top + 200f, endY = bottom) }
+        composeRule.onNodeWithTag("sourcePanel").performTouchInput { swipeDown(startY = top + 200f, endY = bottom) }
+        composeRule.waitForIdle()
+        state = state.copy(sourceText = "$longText more")
+        composeRule.waitForIdle()
+        // Still where the user scrolled to: the new words didn't pull the text to the end.
+        composeRule.onNodeWithTag("sourceJumpToLatest").assertExists().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("sourceJumpToLatest").assertDoesNotExist()
     }
 }

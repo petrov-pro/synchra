@@ -35,6 +35,12 @@ translation as you talk, without waiting for the end of a sentence.
   (for example `En-Ru`).
 - **Three view modes:** both texts side by side, transcription only or translation only.
   Transcription-only sessions skip translation altogether.
+- **Pauses and speakers.** Each pause starts a new paragraph, and a small crossed-out
+  microphone shows while nobody speaks (can be hidden in Settings). In Paid mode Soniox also
+  tells voices apart: once two or more are heard, each change of speaker is labeled
+  "Speaker 1:", "Speaker 2:"… in the source and the translation.
+- **Reading back while recording.** Scrolling up stops the text from jumping to the newest
+  words; a see-through button returns to them. The screen stays on while recording.
 - **Recording in the background.** A foreground service keeps listening while the screen is off
   or another app is open.
 - **History.** Every session is saved on the device and can be reopened, copied (long press) or

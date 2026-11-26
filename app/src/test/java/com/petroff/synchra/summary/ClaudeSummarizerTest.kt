@@ -198,7 +198,18 @@ class ClaudeSummarizerTest {
         val body = server.takeRequest().body.readUtf8()
         assertTrue(body.contains("GLOBAL CONTEXT (about the user, their company, team or product; the user recorded this and may not speak in it):\\nMy name is Andrey"))
         assertTrue(body.contains("ABOUT THIS CONVERSATION (from the user):\\nSprint planning with John and Maria"))
-        assertTrue(body.contains("do not guess which speaker is which participant"))
+        assertTrue(body.contains("do not match a speaker to a participant unless the transcript makes it clear"))
+    }
+
+    @Test
+    fun `Claude names a labeled speaker only when the conversation shows who it is`() = runTest {
+        server.enqueue(claudeAnswer("""{"title":"T","topic":"P","overview":"O","decisions":[]}"""))
+
+        summarizer().summarize("Speaker 1: John, ready?\n\nSpeaker 2: Yes.", "", "Russian")
+
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body.contains("Work out who each labeled speaker is from the conversation itself"))
+        assertTrue(body.contains("rather than guess"))
     }
 
     @Test

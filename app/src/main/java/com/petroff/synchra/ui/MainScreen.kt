@@ -2,7 +2,10 @@ package com.petroff.synchra.ui
 
 import com.petroff.synchra.config.Mode
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,7 +36,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
+import com.petroff.synchra.R
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +72,8 @@ fun MainScreen(
     // Asked once, on the first start; the answer can be changed in Settings.
     askCrashReportsConsent: Boolean = false,
     onCrashReportsConsent: (Boolean) -> Unit = {},
+    // Settings: a small icon in the text's corner while nobody speaks.
+    showSilenceIcon: Boolean = true,
 ) {
     var showContextDialog by remember { mutableStateOf(false) }
 
@@ -142,8 +151,9 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                // Tight above and between the controls: the room goes to the text.
+                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // Only what is shown: works while recording too. Whether Soniox translates is
             // decided at Start (see LiveSession.start), so the bill doesn't change mid-session.
@@ -186,14 +196,28 @@ fun MainScreen(
             uiState.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             uiState.statusMessage?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
-            TranscriptPanels(
-                viewMode = uiState.viewMode,
-                sourceText = uiState.sourceText,
-                translatedText = uiState.translatedText,
-                translationNote = if (uiState.translationRequested) null
-                else "No translation: this recording was started in Transcription mode.",
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-            )
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                TranscriptPanels(
+                    viewMode = uiState.viewMode,
+                    sourceText = uiState.sourceText,
+                    translatedText = uiState.translatedText,
+                    translationNote = if (uiState.translationRequested) null
+                    else "No translation: this recording was started in Transcription mode.",
+                    modifier = Modifier.fillMaxSize(),
+                )
+                val silent = uiState.isListening && !uiState.isSending && !uiState.isPreparing
+                if (showSilenceIcon && silent) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_silence),
+                        contentDescription = "Silence",
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(20.dp)
+                            .testTag("silenceIcon"),
+                    )
+                }
+            }
         }
     }
 }

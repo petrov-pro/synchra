@@ -164,6 +164,17 @@ class ConfigRepositoryTest {
     }
 
     @Test
+    fun `the silence icon is shown until turned off`() {
+        assertEquals(true, repo.getConfig().showSilenceIcon)
+
+        repo.setShowSilenceIcon(false)
+        assertEquals(false, repo.getConfig().showSilenceIcon)
+
+        repo.setShowSilenceIcon(true)
+        assertEquals(true, repo.getConfig().showSilenceIcon)
+    }
+
+    @Test
     fun `crash reports are off and not yet asked about until the user answers`() {
         assertNull(repo.getConfig().crashReportsConsent)
 

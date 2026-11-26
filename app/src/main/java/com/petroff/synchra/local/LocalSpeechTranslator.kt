@@ -27,7 +27,8 @@ class LocalSpeechTranslator(
     private val scope: CoroutineScope,
     // True while the translation models are being made ready, before listening starts.
     private val onPreparing: (Boolean) -> Unit = {},
-    // Here only for the auto-stop after a long silence: nothing is billed in Free mode.
+    // Watches for pauses (a new paragraph, the silence icon) and the auto-stop after a long
+    // silence: nothing is billed in Free mode.
     private val silenceGateFactory: () -> SilenceGate = { SilenceGate() },
 ) : SpeechTranslator {
 
@@ -41,7 +42,7 @@ class LocalSpeechTranslator(
         onAutoStopped: () -> Unit,
         onSendingChanged: (Boolean) -> Unit,
     ) {
-        val session = Session(request, onUpdate, onError, onFinished, onAutoStopped)
+        val session = Session(request, onUpdate, onError, onFinished, onAutoStopped, onSendingChanged)
         current = session
         session.begin()
     }
@@ -57,6 +58,8 @@ class LocalSpeechTranslator(
         private val onError: (String) -> Unit,
         private val onFinished: (LiveTranscript) -> Unit,
         private val onAutoStopped: () -> Unit,
+        // Nothing is sent anywhere: true while someone speaks, false during a pause.
+        private val onSpeakingChanged: (Boolean) -> Unit,
     ) {
         private val translate = request.targetLang != null
         private val translator: Translator? = if (translate) translatorFactory() else null
@@ -104,24 +107,38 @@ class LocalSpeechTranslator(
         }
 
         private fun onSegment(segment: AsrSegment) {
-            val chunk: String?
             synchronized(lock) {
                 if (ending.get()) return
-                if (segment.isFinal) {
+                val chunk = if (segment.isFinal) {
                     if (segment.text.isNotBlank()) finals += segment.text.trim()
                     partial = ""
-                    chunk = chunker.onFinal(segment.text)
+                    chunker.onFinal(segment.text)
                 } else {
                     partial = segment.text.trim()
-                    chunk = chunker.onPartialUpdate(segment.text)
+                    chunker.onPartialUpdate(segment.text)
                 }
+                // Queued under the lock, so a paragraph break can't overtake it.
+                if (translate && !chunk.isNullOrBlank()) chunks.trySend(chunk)
             }
-            if (translate && !chunk.isNullOrBlank()) chunks.trySend(chunk)
             onUpdate(snapshot())
+        }
+
+        /** Someone speaks again after a pause: a new paragraph on both sides. */
+        private fun paragraphBreak() {
+            synchronized(lock) {
+                // Mid-phrase (the recognizer hasn't closed it yet) or nothing said: no break.
+                if (ending.get() || partial.isNotBlank() || finals.lastOrNull() in setOf(null, PARAGRAPH)) return
+                finals += PARAGRAPH
+                if (translate) chunks.trySend(PARAGRAPH)
+            }
         }
 
         private suspend fun translateInOrder(translator: Translator) {
             for (chunk in chunks) {
+                if (chunk == PARAGRAPH) {
+                    synchronized(lock) { translations += PARAGRAPH }
+                    continue
+                }
                 translator.translate(chunk)
                     .onSuccess { text -> synchronized(lock) { translations += text.trim() } ; onUpdate(snapshot()) }
                     .onFailure { e -> onError("Translation failed: ${e.message ?: e.javaClass.simpleName}") }
@@ -160,24 +177,51 @@ class LocalSpeechTranslator(
 
         private fun snapshot(): LiveTranscript = synchronized(lock) {
             LiveTranscript(
-                source = (finals + partial).filter { it.isNotBlank() }.joinToString(" "),
-                translation = translations.filter { it.isNotBlank() }.joinToString(" "),
+                source = joinPieces(finals + partial),
+                translation = joinPieces(translations),
             )
         }
 
         /** The microphone as the recognizer sees it, watched for a long silence. */
         private inner class GatedAudio(private val inner: AudioSource) : AudioSource {
             private val gate = silenceGateFactory()
+            // Only the microphone thread touches it.
+            private var speaking = false
 
             override fun start(onSamples: (FloatArray) -> Unit) = inner.start { samples ->
                 onSamples(samples)
-                if (gate.process(samples).autoStop && autoStopped.compareAndSet(false, true)) {
+                val decision = gate.process(samples)
+                val speakingNow = decision.send.isNotEmpty()
+                if (speakingNow != speaking) {
+                    speaking = speakingNow
+                    if (speakingNow) paragraphBreak()
+                    onSpeakingChanged(speakingNow)
+                }
+                if (decision.autoStop && autoStopped.compareAndSet(false, true)) {
                     onAutoStopped()
                     end()
                 }
             }
 
             override fun stop() = inner.stop()
+        }
+    }
+}
+
+private const val PARAGRAPH = "\n\n"
+
+/** Recognized or translated pieces as text: spaces between them, a blank line at a pause. */
+internal fun joinPieces(pieces: List<String>): String = buildString {
+    var newParagraph = false
+    for (piece in pieces) {
+        when {
+            piece == PARAGRAPH -> newParagraph = isNotEmpty()
+            piece.isBlank() -> Unit
+            else -> {
+                if (isNotEmpty()) append(if (newParagraph) PARAGRAPH else " ")
+                append(piece.trim())
+                newParagraph = false
+            }
         }
     }
 }

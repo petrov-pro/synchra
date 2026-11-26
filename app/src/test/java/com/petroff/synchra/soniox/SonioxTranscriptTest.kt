@@ -60,5 +60,70 @@ class SonioxTranscriptTest {
 
         assertTrue((event as SonioxEvent.Error).message.contains("Soniox 500"))
     }
-}
 
+    @Test
+    fun `speech after a pause starts a new paragraph on both sides, with one empty line`() {
+        transcript.apply(msg(tok("Hello", true), tok("Привет", true, "translation")))
+        transcript.paragraphBreak()
+        // A second pause before anyone speaks again still makes one empty line only.
+        transcript.paragraphBreak()
+
+        val event = transcript.apply(msg(tok(" Bye", true), tok(" Пока", true, "translation")))
+
+        assertEquals(SonioxEvent.Update(source = "Hello\n\nBye", translation = "Привет\n\nПока"), event)
+    }
+
+    @Test
+    fun `the paragraph shows already with the non-final words and waits past a lone space`() {
+        transcript.apply(msg(tok("Hello", true)))
+        transcript.paragraphBreak()
+
+        val preview = transcript.apply(msg(tok(" Bye", false)))
+        assertEquals(SonioxEvent.Update(source = "Hello\n\nBye", translation = ""), preview)
+
+        val event = transcript.apply(msg(tok(" ", true), tok(" Bye", true)))
+        assertEquals(SonioxEvent.Update(source = "Hello\n\nBye", translation = ""), event)
+    }
+
+    @Test
+    fun `a pause before anything was said adds no empty line`() {
+        transcript.paragraphBreak()
+
+        val event = transcript.apply(msg(tok("Hello", true)))
+
+        assertEquals(SonioxEvent.Update(source = "Hello", translation = ""), event)
+    }
+
+    private fun said(text: String, speaker: String, status: String = "original", final: Boolean = true) =
+        """{"text":"$text","is_final":$final,"translation_status":"$status","speaker":"$speaker"}"""
+
+    @Test
+    fun `with two speakers each change of speaker is a labeled paragraph on both sides`() {
+        transcript.apply(msg(said("Hi", "1"), said(" there.", "1"), said("Привет.", "1", "translation")))
+        val event = transcript.apply(
+            msg(said(" Hello.", "2"), said(" Bye.", "1"), said(" Здравствуй.", "2", "translation"))
+        )
+
+        assertEquals(
+            SonioxEvent.Update(
+                source = "Speaker 1: Hi there.\n\nSpeaker 2: Hello.\n\nSpeaker 1: Bye.",
+                translation = "Speaker 1: Привет.\n\nSpeaker 2: Здравствуй.",
+            ),
+            event,
+        )
+    }
+
+    @Test
+    fun `one speaker gets no labels, and a pause keeps the speaker without repeating the label`() {
+        transcript.apply(msg(said("Hi.", "1")))
+        transcript.paragraphBreak()
+        val alone = transcript.apply(msg(said(" Again.", "1")))
+        assertEquals(SonioxEvent.Update(source = "Hi.\n\nAgain.", translation = ""), alone)
+
+        val event = transcript.apply(msg(said(" Me", "2", final = false)))
+        assertEquals(
+            SonioxEvent.Update(source = "Speaker 1: Hi.\n\nAgain.\n\nSpeaker 2: Me", translation = ""),
+            event,
+        )
+    }
+}

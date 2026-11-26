@@ -24,6 +24,8 @@ data class AppConfig(
     // Anonymous crash reports (Crashlytics): null until the user has answered the question.
     val crashReportsConsent: Boolean? = null,
     val mode: Mode = Mode.PAID,
+    // A small icon in the corner of the live text while nobody speaks.
+    val showSilenceIcon: Boolean = true,
 ) {
     val selectedLanguagePair: LanguagePair
         get() = LanguagePair(sourceLanguage.code, sourceLanguage.name, targetLanguage.code, targetLanguage.name)
