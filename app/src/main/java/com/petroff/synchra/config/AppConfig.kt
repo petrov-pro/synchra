@@ -12,6 +12,11 @@ const val DEFAULT_SESSION_LIMIT_MINUTES = 60
 /** "30 min", "1 h", "2 h". */
 fun limitLabel(minutes: Int): String = if (minutes % 60 == 0) "${minutes / 60} h" else "$minutes min"
 
+/** Live and saved text size choices in sp, smallest first, with their Settings labels. */
+val TEXT_SIZE_CHOICES = listOf(18, 24, 30, 36)
+val TEXT_SIZE_LABELS = listOf("S", "M", "L", "XL")
+const val DEFAULT_TEXT_SIZE_SP = 24
+
 data class AppConfig(
     // Anthropic API (Claude), kept for conversation summaries.
     val apiBaseUrl: String,
@@ -36,6 +41,8 @@ data class AppConfig(
     // Paid mode: a session with no touch in the app for this long pauses and asks to continue
     // (a forgotten session would keep paying Soniox). 0 = off.
     val sessionLimitMinutes: Int = DEFAULT_SESSION_LIMIT_MINUTES,
+    // Size of the source and translation text, live and in saved conversations.
+    val textSizeSp: Int = DEFAULT_TEXT_SIZE_SP,
 ) {
     val selectedLanguagePair: LanguagePair
         get() = LanguagePair(sourceLanguage.code, sourceLanguage.name, targetLanguage.code, targetLanguage.name)

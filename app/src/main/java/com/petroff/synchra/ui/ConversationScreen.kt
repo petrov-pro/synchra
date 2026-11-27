@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.petroff.synchra.config.DEFAULT_TEXT_SIZE_SP
 import com.petroff.synchra.config.shortPairLabel
 import com.petroff.synchra.history.ConversationUiState
 import com.petroff.synchra.history.ConversationView
@@ -53,6 +54,8 @@ fun ConversationScreen(
     onDismissError: () -> Unit,
     // False in Free mode: no summaries are made, a saved one is still shown.
     canSummarize: Boolean = true,
+    // Settings: size of the saved texts.
+    textSizeSp: Int = DEFAULT_TEXT_SIZE_SP,
 ) {
     val record = state.record
 
@@ -157,6 +160,7 @@ fun ConversationScreen(
                     viewMode = state.viewMode,
                     sourceText = record.sourceText,
                     translatedText = record.translatedText,
+                    textSizeSp = textSizeSp,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
             }

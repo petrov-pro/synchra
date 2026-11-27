@@ -10,18 +10,28 @@ class SpeakerLabelsTest {
     private val style = SpanStyle(fontWeight = FontWeight.Bold, color = Color.Red)
 
     private fun labels(text: String) =
-        withSpeakerLabels(text, style).spanStyles.map { text.substring(it.start, it.end) }
+        withSpeakerLabels(text, style).let { styled -> styled.spanStyles.map { styled.text.substring(it.start, it.end) } }
 
     @Test
     fun stylesLabelsAtParagraphStarts() {
         val text = "Speaker 1: Hello.\n\nSpeaker 2: Hi there.\n\nmore from two\n\nSpeaker 12: Bye."
         assertEquals(listOf("Speaker 1:", "Speaker 2:", "Speaker 12:"), labels(text))
-        assertEquals(text, withSpeakerLabels(text, style).text)
+    }
+
+    @Test
+    fun putsEachLabelOnItsOwnLine() {
+        val text = "Speaker 1: Hello.\n\nmore from one\n\nSpeaker 2: Hi there."
+        assertEquals(
+            "Speaker 1:\nHello.\n\nmore from one\n\nSpeaker 2:\nHi there.",
+            withSpeakerLabels(text, style).text,
+        )
     }
 
     @Test
     fun leavesLabelLikeWordsInsideTextAlone() {
-        assertEquals(emptyList<String>(), labels("He said Speaker 1: was loud."))
+        val text = "He said Speaker 1: was loud."
+        assertEquals(emptyList<String>(), labels(text))
+        assertEquals(text, withSpeakerLabels(text, style).text)
     }
 
     @Test

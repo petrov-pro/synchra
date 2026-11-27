@@ -1,5 +1,6 @@
 package com.petroff.synchra.ui
 
+import com.petroff.synchra.config.DEFAULT_TEXT_SIZE_SP
 import com.petroff.synchra.config.Mode
 
 import androidx.compose.foundation.Image
@@ -76,6 +77,8 @@ fun MainScreen(
     onCrashReportsConsent: (Boolean) -> Unit = {},
     // Settings: a small icon in the text's corner while nobody speaks.
     showSilenceIcon: Boolean = true,
+    // Settings: size of the live text.
+    textSizeSp: Int = DEFAULT_TEXT_SIZE_SP,
     // A session paused by the time limit: Continue listens on, Stop ends it.
     onContinueSession: () -> Unit = {},
     onStopPaused: () -> Unit = {},
@@ -212,6 +215,7 @@ fun MainScreen(
                     translatedText = uiState.translatedText,
                     translationNote = if (uiState.translationRequested) null
                     else "No translation: this recording was started in Transcription mode.",
+                    textSizeSp = textSizeSp,
                     modifier = Modifier.fillMaxSize(),
                 )
                 val silent = uiState.isListening && !uiState.isSending && !uiState.isPreparing

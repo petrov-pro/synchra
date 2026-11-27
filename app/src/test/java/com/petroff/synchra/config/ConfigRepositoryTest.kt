@@ -231,6 +231,19 @@ class ConfigRepositoryTest {
     }
 
     @Test
+    fun `text size defaults to medium and is saved`() {
+        assertEquals(24, repo.getConfig().textSizeSp)
+        repo.setTextSizeSp(36)
+        assertEquals(36, repo.getConfig().textSizeSp)
+    }
+
+    @Test
+    fun `an unknown stored text size falls back to medium`() {
+        repo.setTextSizeSp(25)
+        assertEquals(24, repo.getConfig().textSizeSp)
+    }
+
+    @Test
     fun `limit labels`() {
         assertEquals("30 min", limitLabel(30))
         assertEquals("1 h", limitLabel(60))

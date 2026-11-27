@@ -52,6 +52,9 @@ import com.petroff.synchra.config.Mode
 import com.petroff.synchra.config.limitLabel
 import com.petroff.synchra.config.SESSION_LIMIT_CHOICES
 import com.petroff.synchra.config.DEFAULT_SESSION_LIMIT_MINUTES
+import com.petroff.synchra.config.DEFAULT_TEXT_SIZE_SP
+import com.petroff.synchra.config.TEXT_SIZE_CHOICES
+import com.petroff.synchra.config.TEXT_SIZE_LABELS
 import com.petroff.synchra.config.sourceLanguagesFor
 import com.petroff.synchra.config.targetLanguagesFor
 import com.petroff.synchra.asr.ModelState
@@ -93,6 +96,8 @@ fun SettingsScreen(
     // Paid mode; applied at once too.
     sessionLimitMinutes: Int = DEFAULT_SESSION_LIMIT_MINUTES,
     onSessionLimitChange: (Int) -> Unit = {},
+    textSizeSp: Int = DEFAULT_TEXT_SIZE_SP,
+    onTextSizeChange: (Int) -> Unit = {},
     // Free / Paid: switched here, applied on Save like the keys.
     currentMode: Mode = Mode.PAID,
     onSaveMode: (Mode) -> Unit = {},
@@ -316,6 +321,23 @@ fun SettingsScreen(
             }
 
             HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+
+            FieldRow(
+                field = "Text size",
+                helpText = "Size of the source and translation text, while recording and in " +
+                    "saved conversations.",
+                onShowHelp = { helpDialog = it },
+            ) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().testTag("textSize")) {
+                    TEXT_SIZE_CHOICES.forEachIndexed { index, sp ->
+                        SegmentedButton(
+                            selected = textSizeSp == sp,
+                            onClick = { onTextSizeChange(sp) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = TEXT_SIZE_CHOICES.size),
+                        ) { Text(TEXT_SIZE_LABELS[index]) }
+                    }
+                }
+            }
 
             FieldRow(
                 field = "Silence icon",

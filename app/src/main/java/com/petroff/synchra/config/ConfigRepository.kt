@@ -15,6 +15,7 @@ interface ConfigRepository {
     fun setMode(mode: Mode)
     fun setShowSilenceIcon(show: Boolean)
     fun setSessionLimitMinutes(minutes: Int)
+    fun setTextSizeSp(sp: Int)
 }
 
 class DefaultConfigRepository(
@@ -41,6 +42,8 @@ class DefaultConfigRepository(
         showSilenceIcon = store.getString(KEY_SILENCE_ICON, "") != SILENCE_ICON_HIDDEN,
         sessionLimitMinutes = store.getString(KEY_SESSION_LIMIT, "").toIntOrNull()
             ?.takeIf { it in SESSION_LIMIT_CHOICES } ?: DEFAULT_SESSION_LIMIT_MINUTES,
+        textSizeSp = store.getString(KEY_TEXT_SIZE, "").toIntOrNull()
+            ?.takeIf { it in TEXT_SIZE_CHOICES } ?: DEFAULT_TEXT_SIZE_SP,
     )
 
     override fun setApiKey(key: String) {
@@ -83,6 +86,8 @@ class DefaultConfigRepository(
         store.putString(KEY_MODE, if (mode == Mode.FREE) MODE_FREE else MODE_PAID)
 
     override fun setSessionLimitMinutes(minutes: Int) = store.putString(KEY_SESSION_LIMIT, minutes.toString())
+
+    override fun setTextSizeSp(sp: Int) = store.putString(KEY_TEXT_SIZE, sp.toString())
 
     override fun setShowSilenceIcon(show: Boolean) =
         store.putString(KEY_SILENCE_ICON, if (show) SILENCE_ICON_SHOWN else SILENCE_ICON_HIDDEN)
@@ -134,6 +139,7 @@ class DefaultConfigRepository(
         private const val MODE_PAID = "paid"
         private const val KEY_SILENCE_ICON = "silence_icon"
         private const val KEY_SESSION_LIMIT = "session_limit_minutes"
+        private const val KEY_TEXT_SIZE = "text_size_sp"
         private const val SILENCE_ICON_SHOWN = "shown"
         private const val SILENCE_ICON_HIDDEN = "hidden"
     }

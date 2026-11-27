@@ -130,6 +130,7 @@ fun SynchraApp(container: AppContainer) {
                             },
                             // Free mode needs no key.
                             showSilenceIcon = config.showSilenceIcon,
+                            textSizeSp = config.textSizeSp,
                             onContinueSession = sessionViewModel::continueSession,
                             onStopPaused = sessionViewModel::stop,
                             hasApiKey = config.mode == Mode.FREE || !config.sonioxApiKey.isNullOrBlank(),
@@ -188,6 +189,7 @@ fun SynchraApp(container: AppContainer) {
                             onOriginalClick = conversationViewModel::onOriginalClick,
                             onViewModeChange = conversationViewModel::setViewMode,
                             canSummarize = config.mode == Mode.PAID,
+                            textSizeSp = config.textSizeSp,
                             onDismissError = {
                                 val close = state.closeOnErrorDismiss
                                 conversationViewModel.dismissError()
@@ -240,6 +242,11 @@ fun SynchraApp(container: AppContainer) {
                             sessionLimitMinutes = config.sessionLimitMinutes,
                             onSessionLimitChange = {
                                 container.configRepository.setSessionLimitMinutes(it)
+                                config = container.configRepository.getConfig()
+                            },
+                            textSizeSp = config.textSizeSp,
+                            onTextSizeChange = {
+                                container.configRepository.setTextSizeSp(it)
                                 config = container.configRepository.getConfig()
                             },
                             onSwapLanguages = {

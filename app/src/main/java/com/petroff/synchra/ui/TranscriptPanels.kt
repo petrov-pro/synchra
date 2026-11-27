@@ -36,6 +36,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.petroff.synchra.config.DEFAULT_TEXT_SIZE_SP
 import kotlinx.coroutines.launch
 import com.petroff.synchra.session.ViewMode
 
@@ -54,12 +56,15 @@ fun TranscriptPanels(
     modifier: Modifier = Modifier,
     // Shown in place of the translation when there is none to show and why.
     translationNote: String? = null,
+    // Settings: size of the text in both panels.
+    textSizeSp: Int = DEFAULT_TEXT_SIZE_SP,
 ) {
     Column(modifier = modifier) {
         if (viewMode != ViewMode.TRANSLATION_ONLY) {
             TextPanel(
                 label = "Source",
                 text = sourceText,
+                textSizeSp = textSizeSp,
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("sourcePanel"),
             )
         }
@@ -71,6 +76,7 @@ fun TranscriptPanels(
             TextPanel(
                 label = "Translation",
                 text = translatedText,
+                textSizeSp = textSizeSp,
                 note = translationNote.takeIf { translatedText.isBlank() },
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("translationPanel"),
             )
@@ -79,7 +85,13 @@ fun TranscriptPanels(
 }
 
 @Composable
-private fun TextPanel(label: String, text: String, modifier: Modifier = Modifier, note: String? = null) {
+private fun TextPanel(
+    label: String,
+    text: String,
+    textSizeSp: Int,
+    modifier: Modifier = Modifier,
+    note: String? = null,
+) {
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     // Follows the latest text until the user scrolls away; scrolling back to the end, or the
@@ -130,7 +142,12 @@ private fun TextPanel(label: String, text: String, modifier: Modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState),
             ) {
-                paragraphs.forEach { Text(text = it, style = MaterialTheme.typography.headlineSmall) }
+                // Lines closer than the headline style's own spacing: more text fits on screen.
+                val style = MaterialTheme.typography.headlineSmall.copy(
+                    fontSize = textSizeSp.sp,
+                    lineHeight = (textSizeSp * LINE_HEIGHT).sp,
+                )
+                paragraphs.forEach { Text(text = it, style = style) }
             }
             JumpToLatestButton(
                 visible = showJump,
@@ -167,4 +184,7 @@ private val JUMP_BUTTON_DISTANCE = 120.dp
 
 // How transcripts separate paragraphs (a pause or a change of speaker), and the space shown there.
 private const val PARAGRAPH_BREAK = "\n\n"
-private val PARAGRAPH_GAP = 8.dp
+private val PARAGRAPH_GAP = 4.dp
+
+// Line height as a multiple of the font size (the headline style has ~1.33).
+private const val LINE_HEIGHT = 1.15f
